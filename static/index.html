@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#000091">
+  <title>Accueil - Formulaire MDPH - Partie B</title>
+  <link rel="stylesheet" href="/vendor/dsfr/dsfr.min.css">
+  <link rel="stylesheet" href="/vendor/dsfr/utility/utility.min.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="apple-touch-icon" href="/vendor/dsfr/favicon/apple-touch-icon.png">
+  <link rel="icon" href="/vendor/dsfr/favicon/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <div class="fr-skiplinks">
+    <nav class="fr-container" role="navigation" aria-label="Accès rapide">
+      <ul class="fr-skiplinks__list">
+        <li><a class="fr-link" href="#contenu">Aller au contenu</a></li>
+        <li><a class="fr-link" href="#footer">Aller au pied de page</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <header role="banner" class="fr-header">
+    <div class="fr-header__body">
+      <div class="fr-container">
+        <div class="fr-header__body-row">
+          <div class="fr-header__brand fr-enlarge-link">
+            <div class="fr-header__brand-top">
+              <div class="fr-header__logo">
+                <p class="fr-logo">Ministères<br>sociaux</p>
+              </div>
+            </div>
+            <div class="fr-header__service">
+              <a href="/" title="Accueil - Complétion d'un formulaire avec la voix">
+                <p class="fr-header__service-title">Complétion d'un formulaire avec la voix</p>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Fil d'Ariane (DSFR) : sous l'en-tête, hors du contenu principal, sur tous les écrans sauf l'accueil.
+       Il suit la hiérarchie du parcours (Accueil › Avant de commencer › étape), pas l'historique. -->
+  <div class="fr-container" id="fil-ariane" hidden>
+    <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
+      <button type="button" class="fr-breadcrumb__button" aria-expanded="false" aria-controls="fil-ariane-liens">Voir le fil d’Ariane</button>
+      <div class="fr-collapse" id="fil-ariane-liens">
+        <ol class="fr-breadcrumb__list" id="fil-ariane-liste"></ol>
+      </div>
+    </nav>
+  </div>
+
+  <main id="contenu" role="main" class="fr-container fr-py-4w">
+    <div class="fr-grid-row fr-grid-row--center">
+    <div class="fr-col-12 fr-col-md-10 fr-col-lg-8" id="colonne-principale">
+
+    <div class="fr-grid-row fr-grid-row--middle fr-mb-3w">
+      <div class="fr-col-12 fr-col-md">
+        <h1 class="fr-h3 fr-mb-1w" id="titre-page" tabindex="-1">Formulaire MDPH - Partie B</h1>
+      </div>
+      <!-- Sur l'écran des questions, les réglages rejoignent la ligne de lecture (toutes les commandes de la voix au même endroit). -->
+      <div id="reglages-titre">
+        <button type="button" class="fr-btn fr-btn--tertiary fr-icon-settings-5-line fr-btn--icon-left"
+          aria-controls="modal-reglages" data-fr-opened="false" id="btn-reglages">Réglages de la voix</button>
+      </div>
+    </div>
+
+    <!-- 1. Accueil -->
+    <section id="accueil" aria-labelledby="titre-page">
+      <p class="fr-text--lead">Répondez aux questions de la partie B « Votre vie quotidienne », en parlant ou en écrivant. Le formulaire se remplit au fur et à mesure de vos réponses.</p>
+
+      <div class="fr-background-contrast--blue-france fr-p-4w fr-mb-6w">
+        <div id="alerte-micro" class="fr-alert fr-alert--warning fr-alert--sm fr-mb-3w" hidden>
+          <p>La reconnaissance vocale ne fonctionne pas dans ce navigateur. Vous pouvez répondre en écrivant, ou utiliser Chrome, Edge ou Safari pour parler.</p>
+        </div>
+
+        <ul class="fr-raw-list fr-grid-row fr-grid-row--gutters fr-grid-row--center fr-mb-3w">
+          <li class="fr-col-12 fr-col-sm-4"><span class="fr-icon-questionnaire-line fr-mr-1w" aria-hidden="true"></span>Environ <strong id="nb-questions">20</strong> questions</li>
+          <li class="fr-col-12 fr-col-sm-4"><span class="fr-icon-time-line fr-mr-1w" aria-hidden="true"></span>Environ <strong>20 minutes</strong></li>
+          <li class="fr-col-12 fr-col-sm-4"><span class="fr-icon-user-line fr-mr-1w" aria-hidden="true"></span>Sans création de compte</li>
+        </ul>
+        <fieldset class="fr-fieldset fr-mb-2w" id="reprise" aria-labelledby="reprise-legende" hidden>
+          <legend class="fr-fieldset__legend" id="reprise-legende">Vous aviez commencé à répondre. Que voulez-vous faire ?</legend>
+          <div class="fr-fieldset__element">
+            <div class="fr-radio-group">
+              <input type="radio" id="reprise-continuer" name="reprise" value="continuer" checked>
+              <label class="fr-label" for="reprise-continuer">Reprendre où j'en étais
+                <span class="fr-hint-text" id="reprise-continuer-aide">Vos réponses sont gardées.</span>
+              </label>
+            </div>
+          </div>
+          <div class="fr-fieldset__element">
+            <div class="fr-radio-group">
+              <input type="radio" id="reprise-recommencer" name="reprise" value="recommencer">
+              <label class="fr-label" for="reprise-recommencer">Recommencer depuis le début
+                <span class="fr-hint-text">Toutes vos réponses seront effacées.</span>
+              </label>
+            </div>
+          </div>
+        </fieldset>
+        <ul class="fr-btns-group fr-btns-group--lg fr-btns-group--center fr-btns-group--inline-md">
+          <li><button type="button" id="btn-start" class="fr-btn">Remplir le formulaire</button></li>
+        </ul>
+      </div>
+
+      <h2 class="fr-h5">Comment ça marche ?</h2>
+      <ol class="fr-mb-3w">
+        <li>Les questions sont lues à voix haute, une par une.</li>
+        <li>Vous répondez en parlant ou en écrivant.</li>
+        <li>À la fin, vous imprimez ou enregistrez le formulaire rempli.</li>
+      </ol>
+
+      <div class="fr-alert fr-alert--info fr-mt-3w">
+        <h2 class="fr-alert__title">Vos données</h2>
+        <p>Vos réponses sont gardées dans votre navigateur, et effacées quand vous fermez l'onglet. Pour comprendre vos phrases, elles sont envoyées à un programme informatique qui comprend le langage (une intelligence artificielle). <a href="/donnees-personnelles">En savoir plus sur vos données</a></p>
+      </div>
+    </section>
+
+    <!-- 2. Avant de commencer : la présentation lue à voix haute est aussi affichée (RGAA 4). Le texte
+         lu est composé à partir des éléments [data-lu] visibles, pour que l'écrit et l'oral soient identiques. -->
+    <section id="avant" aria-labelledby="titre-page" hidden>
+      <!-- Lecteur de la voix en premier, au-dessus du texte lu (comme sur l'écran des questions). -->
+      <div id="zone-voix-avant" class="fr-grid-row fr-grid-row--middle fr-mb-1w">
+        <p class="fr-col-12 fr-col-sm fr-mb-1w" role="status"><span class="fr-icon-volume-up-line fr-mr-1w" aria-hidden="true"></span><span id="etat-voix-avant">Lecture terminée</span></p>
+        <button type="button" id="btn-pause-avant" class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line fr-mb-1w">Réécouter la présentation</button>
+      </div>
+
+      <!-- Tout le texte lu, regroupé sur fond bleu comme la question en cours ; les actions sont dessous. -->
+      <div class="fr-background-alt--blue-france fr-p-3w">
+        <p data-lu id="avant-intro">Je vais vous lire les questions de la partie B du formulaire, une par une. Vous répondez avec vos mots, ou directement dans la question.</p>
+        <p data-lu id="avant-intro-clavier" hidden>Je vais vous lire les questions de la partie B du formulaire, une par une. Répondez directement dans chaque question, puis appuyez sur « Question suivante ».</p>
+
+        <div id="avant-voix">
+          <h2 class="fr-h5 fr-mt-3w" data-lu>Ce que vous pouvez dire à tout moment</h2>
+          <ul>
+            <li data-lu>« <strong>Répète</strong> » : pour réentendre la question.</li>
+            <li data-lu>« <strong>Reformule</strong> » : pour l'entendre avec des mots plus simples.</li>
+            <li data-lu>« <strong>Question suivante</strong> » ou « <strong>étape suivante</strong> » : pour passer à la suite.</li>
+            <li data-lu>« <strong>Question précédente</strong> » ou « <strong>étape précédente</strong> » : pour revenir en arrière.</li>
+            <li data-lu>« <strong>Revenir à</strong> » et le sujet : pour corriger une réponse, par exemple « revenir au logement ».</li>
+          </ul>
+        </div>
+
+        <!-- Une seule consigne affichée selon le mode : écoute automatique, micro à la demande, ou écrit. -->
+        <h2 class="fr-h5 fr-mt-3w" data-lu>Pour commencer</h2>
+        <p class="fr-mb-2w" id="consigne-auto" data-lu>Dites « on commence », ou appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ».</p>
+        <p class="fr-mb-2w" id="consigne-micro" data-lu hidden>Appuyez sur « Parler » et dites « on commence », ou appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ».</p>
+        <p class="fr-mb-0" id="consigne-clavier" data-lu hidden>Appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ».</p>
+        <p class="fr-mb-0" id="avant-bip" data-lu>Un petit bip vous indique que je vous écoute, un autre que j'ai fini d'écouter.</p>
+      </div>
+
+      <!-- Hors du fond bleu : au survol, le bouton secondaire DSFR garde un contraste suffisant. -->
+      <ul class="fr-btns-group fr-btns-group--lg fr-btns-group--inline-md fr-btns-group--icon-left fr-mt-3w fr-mb-0">
+        <li><button type="button" id="btn-commencer" class="fr-btn">Commencer les questions</button></li>
+        <li id="li-parler-avant"><button type="button" id="btn-parler-avant" class="fr-btn fr-btn--secondary fr-icon-mic-line" aria-describedby="etat-micro-avant">Parler</button></li>
+      </ul>
+      <p id="etat-micro-avant" class="fr-text--bold fr-mb-1w" role="status" aria-live="polite"></p>
+      <p class="fr-mb-2w" id="transcription-avant" hidden><span class="fr-text--bold">Vous avez dit :</span> « <span id="transcription-avant-texte"></span> »</p>
+      <div id="erreur-micro-avant" class="fr-alert fr-alert--error fr-alert--sm" role="alert" hidden>
+        <p id="erreur-micro-avant-texte"></p>
+      </div>
+
+    </section>
+
+    <!-- 3. Questions -->
+    <section id="espace" aria-labelledby="titre-page" hidden>
+        <!-- La question en cours : on y répond en cochant, en écrivant ou en parlant. -->
+          <div id="alerte-simplifie" class="fr-alert fr-alert--warning fr-alert--sm fr-mb-2w" hidden>
+            <p>Mode simplifié : vos phrases sont moins bien comprises. Cochez de préférence les réponses proposées.</p>
+          </div>
+
+          <!-- Changer d'étape : l'indicateur d'étapes ne permet pas de naviguer (DSFR), on utilise des boutons
+               (tertiaires, petits), juste au-dessus : « précédente » à gauche, « suivante » à droite. Boutons
+               isolés (hors groupe), chacun avec sa flèche ; la destination est donnée aux lecteurs d'écran.
+               Ils restent côte à côte s'il y a la place ; sinon « suivante » passe dessous, toujours à droite. -->
+          <nav role="navigation" aria-label="Changer d'étape" class="fr-grid-row fr-grid-row--middle fr-mb-1w">
+            <button type="button" class="fr-mb-1w fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-arrow-left-line" id="btn-etape-prec">Étape précédente<span class="fr-sr-only" id="btn-etape-prec-dest"></span></button>
+            <button type="button" class="fr-ml-auto fr-mb-1w fr-btn fr-btn--tertiary fr-btn--icon-right fr-icon-arrow-right-line" id="btn-etape-suiv"><span id="btn-etape-suiv-libelle">Étape suivante</span><span class="fr-sr-only" id="btn-etape-suiv-dest"></span></button>
+          </nav>
+          <div class="fr-stepper">
+            <h2 class="fr-stepper__title"><span id="etape-titre"></span><span class="fr-stepper__state" id="etape-etat"></span></h2>
+            <div class="fr-stepper__steps" id="etape-barre"></div>
+            <p class="fr-stepper__details" id="etape-suivante"><span class="fr-text--bold">Étape suivante :</span> <span id="etape-suivante-titre"></span></p>
+          </div>
+
+
+          <!-- Fin d'étape : vert si l'étape est complète, orange s'il reste des questions sans réponse. -->
+          <div id="fin-etape" class="fr-alert fr-alert--success fr-alert--sm fr-mb-2w" hidden>
+            <p id="fin-etape-texte"></p>
+          </div>
+          <div id="derniere-reponse" class="fr-alert fr-alert--success fr-alert--sm fr-mb-2w" hidden>
+            <p id="derniere-reponse-texte"></p>
+          </div>
+
+          <!-- Commandes de la voix, au même endroit, au-dessus de la question : état de la lecture et pause
+               (masqués si la lecture à voix haute est désactivée), puis les réglages (toujours visibles). -->
+          <div class="fr-grid-row fr-grid-row--middle fr-mb-1w">
+            <p class="fr-col-12 fr-col-sm fr-mb-1w" role="status" id="zone-voix"><span class="fr-icon-volume-up-line fr-mr-1w" aria-hidden="true"></span><span id="etat-voix">Lecture terminée</span></p>
+            <button type="button" id="btn-pause" class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line fr-mb-1w fr-mr-1w">Réécouter la question</button>
+            <button type="button" class="fr-btn fr-btn--tertiary fr-icon-settings-5-line fr-btn--icon-left fr-mb-1w"
+              aria-controls="modal-reglages" data-fr-opened="false" id="btn-reglages-question">Réglages de la voix</button>
+          </div>
+
+          <!-- Erreur du micro : au-dessus de la question (pas dans le fond bleu), avec la solution. -->
+          <div id="erreur-micro" class="fr-alert fr-alert--error fr-alert--sm fr-mb-2w" role="alert" hidden>
+            <p id="erreur-micro-texte"></p>
+          </div>
+
+          <div class="fr-background-alt--blue-france fr-p-3w">
+            <p class="fr-text--bold fr-mb-1w" id="question-numero"></p>
+            <!-- Questions obligatoires : indiqué juste avant les champs (RGAA 11.10), en gris discret (16 px minimum). -->
+            <p class="fr-text-mention--grey fr-mb-2w">Sauf mention contraire « (optionnel) » dans l'intitulé, toutes les questions sont obligatoires.</p>
+            <form id="form-b" novalidate></form>
+
+            <div id="controles-vocaux">
+              <ul class="fr-btns-group fr-btns-group--lg fr-btns-group--icon-left fr-mb-0">
+                <li id="li-mic"><button type="button" id="btn-mic" class="fr-btn fr-icon-mic-line" aria-describedby="etat-micro">Parler</button></li>
+              </ul>
+              <p id="etat-micro" class="fr-text--bold fr-mb-2w" role="status" aria-live="polite"></p>
+              <p class="fr-mb-2w" id="transcription" hidden><span class="fr-text--bold">Vous avez dit :</span> « <span id="transcription-texte"></span> »</p>
+            </div>
+          </div>
+          <!-- Hors du fond bleu : au survol, le bouton secondaire DSFR garde un contraste suffisant. -->
+          <!-- Navigation d'une question à l'autre (l'indicateur d'étapes, lui, ne permet pas de naviguer). -->
+          <ul class="fr-btns-group fr-btns-group--right fr-btns-group--inline-sm fr-mt-2w fr-mb-0">
+            <li id="li-precedent"><button type="button" class="fr-btn fr-btn--tertiary" id="btn-precedent">Question précédente</button></li>
+            <li><button type="button" class="fr-btn fr-btn--secondary" id="btn-suivant">Question suivante</button></li>
+          </ul>
+    </section>
+
+    <!-- 4. Fin -->
+    <section id="recap" aria-labelledby="titre-page" hidden>
+      <!-- Après l'effacement : confirmation, puis retour à l'accueil (que l'usager peut arrêter). -->
+      <div id="efface-ok" class="fr-alert fr-alert--success fr-alert--sm fr-mb-3w" role="alert" hidden>
+        <p id="efface-texte">Vous allez revenir à l'accueil dans 10 secondes.</p>
+        <ul class="fr-btns-group fr-btns-group--inline-sm fr-mt-1w fr-mb-0">
+          <li><button type="button" class="fr-btn" id="btn-accueil-maintenant">Revenir à l'accueil maintenant</button></li>
+          <li><button type="button" class="fr-btn fr-btn--secondary" id="btn-rester">Rester sur cette page</button></li>
+        </ul>
+      </div>
+
+      <div id="recap-contenu">
+        <p>Imprimez votre formulaire ou enregistrez-le, puis ajoutez-le à votre dossier de demande MDPH.</p>
+
+        <!-- Toutes les questions ont une réponse : succès. Sinon : avertissement (orange). -->
+        <div id="recap-complet" class="fr-alert fr-alert--success fr-mb-3w" hidden>
+          <h2 class="fr-alert__title">Toutes les questions ont une réponse</h2>
+          <p>Votre formulaire est complet. Vous pouvez l'imprimer ou l'enregistrer.</p>
+        </div>
+        <div id="recap-manquantes" class="fr-alert fr-alert--warning fr-mb-3w" hidden>
+          <h2 class="fr-alert__title" id="recap-manquantes-titre"></h2>
+          <p>Vous pouvez imprimer le formulaire tel quel, ou y répondre maintenant.</p>
+          <button type="button" class="fr-btn fr-btn--secondary fr-icon-arrow-right-line fr-btn--icon-right fr-mt-2w" id="btn-reprendre">Répondre aux questions restantes</button>
+        </div>
+
+        <ul class="fr-btns-group fr-btns-group--icon-left">
+          <li><button type="button" class="fr-btn fr-btn--lg fr-icon-printer-line" id="btn-imprimer">Imprimer le formulaire<span class="fr-sr-only"> (s'ouvre dans un nouvel onglet)</span></button></li>
+          <li><button type="button" class="fr-btn fr-btn--lg fr-btn--secondary fr-icon-download-line" id="btn-telecharger">Enregistrer le formulaire (PDF)</button></li>
+          <li><button type="button" class="fr-btn fr-btn--lg fr-btn--tertiary fr-icon-edit-line" id="btn-modifier">Modifier mes réponses</button></li>
+        </ul>
+
+        <!-- Action destructrice : à l'écart des actions principales (séparateur, section à part, en bas
+             de page), avec ses conséquences écrites, et confirmation dans une fenêtre (modale DSFR). -->
+        <hr class="fr-hr fr-mt-8w">
+        <h2 class="fr-h5">Effacer vos réponses</h2>
+        <p>Toutes vos réponses seront définitivement supprimées. Pensez à enregistrer votre formulaire avant de continuer.</p>
+        <button type="button" class="fr-btn fr-btn--tertiary fr-icon-delete-line fr-btn--icon-left" id="btn-effacer" aria-controls="modal-effacer" data-fr-opened="false">Effacer toutes mes réponses</button>
+      </div>
+    </section>
+
+    <!-- Annonces pour les lecteurs d'écran -->
+    <p class="fr-sr-only" role="status" aria-live="polite" id="annonce-assistant"></p>
+    <p class="fr-sr-only" role="status" aria-live="assertive" id="annonce"></p>
+
+    </div>
+    </div>
+  </main>
+
+  <footer class="fr-footer" role="contentinfo" id="footer">
+    <div class="fr-container">
+      <div class="fr-footer__body">
+        <div class="fr-footer__brand fr-enlarge-link">
+          <a href="/" title="Retour à l'accueil du site - Complétion d'un formulaire avec la voix">
+            <p class="fr-logo">Ministères<br>sociaux</p>
+          </a>
+        </div>
+        <div class="fr-footer__content">
+          <p class="fr-footer__content-desc">Ce service aide à remplir la partie B du formulaire de demande à la MDPH (Cerfa n° 15692*01). Il ne remplace pas la MDPH : c'est la MDPH qui étudie votre demande.</p>
+          <ul class="fr-footer__content-list">
+            <li class="fr-footer__content-item"><a class="fr-footer__content-link" target="_blank" rel="noopener external" title="info.gouv.fr - nouvelle fenêtre" href="https://info.gouv.fr">info.gouv.fr</a></li>
+            <li class="fr-footer__content-item"><a class="fr-footer__content-link" target="_blank" rel="noopener external" title="service-public.gouv.fr - nouvelle fenêtre" href="https://service-public.gouv.fr">service-public.gouv.fr</a></li>
+            <li class="fr-footer__content-item"><a class="fr-footer__content-link" target="_blank" rel="noopener external" title="legifrance.gouv.fr - nouvelle fenêtre" href="https://legifrance.gouv.fr">legifrance.gouv.fr</a></li>
+            <li class="fr-footer__content-item"><a class="fr-footer__content-link" target="_blank" rel="noopener external" title="data.gouv.fr - nouvelle fenêtre" href="https://data.gouv.fr">data.gouv.fr</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="fr-footer__bottom">
+        <ul class="fr-footer__bottom-list">
+          <li class="fr-footer__bottom-item"><a class="fr-footer__bottom-link" href="/accessibilite">Accessibilité : non conforme</a></li>
+          <li class="fr-footer__bottom-item"><a class="fr-footer__bottom-link" href="/mentions-legales">Mentions légales</a></li>
+          <li class="fr-footer__bottom-item"><a class="fr-footer__bottom-link" href="/donnees-personnelles">Données personnelles et gestion des cookies</a></li>
+          <li class="fr-footer__bottom-item">
+            <button type="button" class="fr-footer__bottom-link fr-icon-theme-fill fr-btn--icon-left" aria-controls="fr-theme-modal" data-fr-opened="false">Paramètres d'affichage</button>
+          </li>
+        </ul>
+        <div class="fr-footer__bottom-copy">
+          <p>Sauf mention explicite de propriété intellectuelle détenue par des tiers, les contenus de ce site sont proposés sous <a href="https://github.com/etalab/licence-ouverte/blob/master/LO.md" target="_blank" rel="noopener external" title="Licence etalab - nouvelle fenêtre">licence etalab-2.0</a></p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+
+  <dialog id="modal-effacer" class="fr-modal" aria-labelledby="modal-effacer-titre">
+    <div class="fr-container fr-container--fluid fr-container-md">
+      <div class="fr-grid-row fr-grid-row--center">
+        <div class="fr-col-12 fr-col-md-8 fr-col-lg-6">
+          <div class="fr-modal__body">
+            <div class="fr-modal__header">
+              <button type="button" class="fr-btn--close fr-btn" aria-controls="modal-effacer" title="Fermer">Fermer</button>
+            </div>
+            <div class="fr-modal__content">
+              <h1 id="modal-effacer-titre" class="fr-modal__title"><span class="fr-icon-warning-line fr-icon--lg fr-mr-1w" aria-hidden="true"></span>Effacer toutes vos réponses ?</h1>
+              <p>Toutes vos réponses seront définitivement supprimées. Pensez à enregistrer votre formulaire avant de continuer.</p>
+            </div>
+            <div class="fr-modal__footer">
+              <ul class="fr-btns-group fr-btns-group--right fr-btns-group--inline-reverse fr-btns-group--inline-lg">
+                <li><button type="button" class="fr-btn" id="btn-effacer-oui">Oui, effacer mes réponses</button></li>
+                <li><button type="button" class="fr-btn fr-btn--secondary" aria-controls="modal-effacer">Non, garder mes réponses</button></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="modal-reglages" class="fr-modal" aria-labelledby="modal-reglages-titre">
+    <div class="fr-container fr-container--fluid fr-container-md">
+      <div class="fr-grid-row fr-grid-row--center">
+        <div class="fr-col-12 fr-col-md-8 fr-col-lg-6">
+          <div class="fr-modal__body">
+            <div class="fr-modal__header">
+              <button type="button" class="fr-btn--close fr-btn" aria-controls="modal-reglages" title="Fermer">Fermer</button>
+            </div>
+            <div class="fr-modal__content">
+              <h1 id="modal-reglages-titre" class="fr-modal__title">Réglages de la voix</h1>
+              <p>Les changements s'appliquent tout de suite.</p>
+              <fieldset class="fr-fieldset" aria-labelledby="modal-reglages-titre">
+                <div class="fr-fieldset__element">
+                  <div class="fr-select-group">
+                    <label class="fr-label" for="pref-rate">Vitesse de la voix</label>
+                    <select class="fr-select" id="pref-rate">
+                      <option value="0.55">Très lente</option>
+                      <option value="0.7">Lente</option>
+                      <option value="0.9" selected>Normale</option>
+                      <option value="1.15">Rapide</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="fr-fieldset__element">
+                  <ul class="fr-toggle__list">
+                    <li>
+                      <div class="fr-toggle fr-toggle--label-left">
+                        <input type="checkbox" class="fr-toggle__input" id="pref-speak" aria-describedby="pref-speak-hint" checked>
+                        <label class="fr-toggle__label" for="pref-speak" data-fr-checked-label="Activé" data-fr-unchecked-label="Désactivé">Lire les questions à voix haute</label>
+                        <p class="fr-hint-text" id="pref-speak-hint">Si vous utilisez un lecteur d'écran, désactivez cette option : il lira lui-même les questions.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <div class="fr-toggle fr-toggle--label-left">
+                        <input type="checkbox" class="fr-toggle__input" id="pref-handsfree" aria-describedby="pref-handsfree-hint" checked>
+                        <label class="fr-toggle__label" for="pref-handsfree" data-fr-checked-label="Activé" data-fr-unchecked-label="Désactivé">Écoute automatique</label>
+                        <p class="fr-hint-text" id="pref-handsfree-hint">Le micro s'ouvre et se ferme tout seul. Sinon, utilisez le bouton « Parler ».</p>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </fieldset>
+            </div>
+            <div class="fr-modal__footer">
+              <ul class="fr-btns-group fr-btns-group--right fr-btns-group--inline-md">
+                <li><button type="button" class="fr-btn" aria-controls="modal-reglages">Fermer les réglages</button></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="fr-theme-modal" class="fr-modal" aria-labelledby="fr-theme-modal-title">
+    <div class="fr-container fr-container--fluid fr-container-md">
+      <div class="fr-grid-row fr-grid-row--center">
+        <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+          <div class="fr-modal__body">
+            <div class="fr-modal__header">
+              <button type="button" class="fr-btn--close fr-btn" aria-controls="fr-theme-modal" title="Fermer">Fermer</button>
+            </div>
+            <div class="fr-modal__content">
+              <h1 id="fr-theme-modal-title" class="fr-modal__title">Paramètres d'affichage</h1>
+              <div id="fr-display" class="fr-form-group fr-display">
+                <fieldset class="fr-fieldset">
+                  <legend class="fr-fieldset__legend--regular fr-fieldset__legend">Choisissez un thème pour personnaliser l'apparence du site.</legend>
+                  <div class="fr-fieldset__element">
+                    <div class="fr-radio-group">
+                      <input value="light" type="radio" id="fr-radios-theme-light" name="fr-radios-theme">
+                      <label class="fr-label" for="fr-radios-theme-light">Thème clair</label>
+                    </div>
+                  </div>
+                  <div class="fr-fieldset__element">
+                    <div class="fr-radio-group">
+                      <input value="dark" type="radio" id="fr-radios-theme-dark" name="fr-radios-theme">
+                      <label class="fr-label" for="fr-radios-theme-dark">Thème sombre</label>
+                    </div>
+                  </div>
+                  <div class="fr-fieldset__element">
+                    <div class="fr-radio-group">
+                      <input value="system" type="radio" id="fr-radios-theme-system" name="fr-radios-theme">
+                      <label class="fr-label" for="fr-radios-theme-system">Système
+                        <span class="fr-hint-text">Utilise les paramètres système.</span>
+                      </label>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="/js/dsfr-config.js"></script>
+  <script type="module" src="/vendor/dsfr/dsfr.module.min.js"></script>
+  <script nomodule src="/vendor/dsfr/dsfr.nomodule.min.js"></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

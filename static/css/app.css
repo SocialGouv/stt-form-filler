@@ -1,0 +1,8 @@
+/* Le site utilise le DSFR tel quel (composants, grille, utilitaires).
+   Une seule règle s'y ajoute, faute d'équivalent dans le système de design. */
+
+/* 1. L'attribut HTML hidden doit toujours masquer : certains composants DSFR imposent un
+      display (par exemple .fr-error-text en flex), qui l'emporterait sur hidden. */
+[hidden] {
+  display: none !important;
+}

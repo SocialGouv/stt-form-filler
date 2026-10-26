@@ -1,0 +1,24 @@
+# Secrets : clés d'API (Albert, Anthropic) et identifiants d'accès. Ne jamais versionner.
+# Le modèle sans secret est .env.example (à copier en .env).
+.env
+.env.*
+!.env.example
+
+# Environnement Python et caches
+.venv/
+__pycache__/
+*.pyc
+
+# Modèles de voix Piper (≈ 125 Mo, téléchargés à l'installation)
+voices/
+
+# Outils locaux (binaire cloudflared pour les tests à distance)
+outils/
+
+# Journaux du serveur (adresses IP, extraits de réponses : données personnelles)
+serveur.log
+*.log
+
+# Réglages locaux (Claude Code, systèmes)
+.claude/settings.local.json
+.DS_Store

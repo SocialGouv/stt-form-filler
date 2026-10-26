@@ -1,0 +1,630 @@
+{
+  "id": "cerfa-15692-01-partie-b",
+  "title": "Partie B — Votre vie quotidienne",
+  "acronyms": {
+    "AAH": "allocation aux adultes handicapés",
+    "AEEH": "allocation d'éducation de l'enfant handicapé",
+    "APA": "allocation personnalisée d'autonomie",
+    "ARE": "allocation d'aide au retour à l'emploi",
+    "ASI": "allocation supplémentaire d'invalidité",
+    "ASPA": "allocation de solidarité aux personnes âgées",
+    "ASS": "allocation de solidarité spécifique",
+    "CAT": "centre d'aide par le travail, ancien nom des ESAT",
+    "CAF": "caisse d'allocations familiales",
+    "CPAM": "caisse primaire d'assurance maladie",
+    "EA": "entreprise adaptée",
+    "EHPAD": "établissement d'hébergement pour personnes âgées dépendantes",
+    "ESAT": "établissement et service d'aide par le travail",
+    "FAM": "foyer d'accueil médicalisé",
+    "IME": "institut médico-éducatif",
+    "IPP": "incapacité permanente partielle",
+    "MAS": "maison d'accueil spécialisée",
+    "MDPH": "maison départementale des personnes handicapées",
+    "MSA": "mutualité sociale agricole",
+    "MTP": "majoration pour tierce personne",
+    "PCH": "prestation de compensation du handicap",
+    "PCRTP": "prestation complémentaire pour recours à tierce personne",
+    "RQTH": "reconnaissance de la qualité de travailleur handicapé",
+    "RSA": "revenu de solidarité active",
+    "SAMSAH": "service d'accompagnement médico-social pour adultes handicapés",
+    "SAVS": "service d'accompagnement à la vie sociale",
+    "SESSAD": "service d'éducation spéciale et de soins à domicile",
+    "SSIAD": "service de soins infirmiers à domicile",
+    "URSSAF": "union de recouvrement des cotisations de sécurité sociale et d'allocations familiales"
+  },
+  "sections": [
+    { "id": "intro", "title": "Pour commencer" },
+    { "id": "B1", "title": "B1 — Votre vie quotidienne" },
+    { "id": "B1-aides", "title": "B1 — Aide financière et ressources" },
+    { "id": "B1-comp", "title": "B1 — Aides que vous utilisez et frais" },
+    { "id": "B2", "title": "B2 — Vos besoins dans la vie quotidienne" },
+    { "id": "B3", "title": "B3 — Vos attentes" },
+    { "id": "B4", "title": "Autres renseignements" }
+  ],
+  "steps": [
+    { "id": "situation", "title": "Votre situation", "sections": ["intro", "B1"] },
+    { "id": "ressources", "title": "Vos ressources", "sections": ["B1-aides"] },
+    { "id": "aides", "title": "Aides et frais", "sections": ["B1-comp"] },
+    { "id": "besoins", "title": "Vos besoins", "sections": ["B2"] },
+    { "id": "attentes", "title": "Vos attentes", "sections": ["B3", "B4"] }
+  ],
+  "questions": [
+    {
+      "id": "concerne",
+      "section": "intro",
+      "type": "single",
+      "label": "Pour qui remplissez-vous ce formulaire ?",
+      "short": "Pour qui",
+      "simple": "Ce formulaire parle de qui ? De vous ? Ou de votre enfant ?",
+      "options": [
+        { "id": "moi", "label": "Pour moi-même" },
+        { "id": "enfant", "label": "Pour mon enfant" },
+        { "id": "proche", "label": "Pour un proche adulte (je l'aide à remplir)" }
+      ]
+    },
+
+    {
+      "id": "vit_avec",
+      "section": "B1",
+      "type": "multi",
+      "label": "Avec qui vivez-vous ?",
+      "short": "Avec qui vous vivez",
+      "simple": "Chez vous, vous habitez avec qui ? Sans personne d'autre ? En couple ? Avec vos parents ? Avec vos enfants ?",
+      "options": [
+        { "id": "seul", "label": "Seul(e)", "synonyms": ["seul", "seule", "tout seul", "toute seule", "personne d'autre"] },
+        { "id": "couple", "label": "En couple" },
+        { "id": "parents", "label": "Avec vos parents (ou l'un d'entre eux)" },
+        { "id": "enfants", "label": "Avec vos enfants (ou l'un d'entre eux)" },
+        { "id": "autre", "label": "Autre situation" }
+      ]
+    },
+    {
+      "id": "vit_avec_autre",
+      "section": "B1",
+      "type": "text",
+      "label": "Autre situation : précisez avec qui vous vivez.",
+      "short": "Précision : avec qui",
+      "simple": "Dites avec qui vous habitez.",
+      "when": { "q": "vit_avec", "includes": "autre" }
+    },
+    {
+      "id": "lieu_vie",
+      "section": "B1",
+      "type": "single",
+      "label": "Où vivez-vous ?",
+      "short": "Où vous vivez",
+      "simple": "Où est votre maison ? C'est votre logement à vous ? Vous habitez chez quelqu'un ? Vous habitez dans un établissement, par exemple un foyer ?",
+      "options": [
+        { "id": "logement_independant", "label": "Vous avez un logement indépendant" },
+        { "id": "etablissement", "label": "Dans un établissement médico-social ou de soin", "synonyms": ["foyer", "IME", "FAM", "MAS", "EHPAD", "hôpital", "clinique", "institut"] },
+        { "id": "heberge", "label": "Vous êtes hébergé(e) au domicile de quelqu'un", "synonyms": ["hébergé", "hébergée", "chez quelqu'un", "chez des amis", "chez ma famille"] },
+        { "id": "autre", "label": "Autre situation" }
+      ]
+    },
+    {
+      "id": "statut_logement",
+      "section": "B1",
+      "type": "single",
+      "label": "Pour ce logement, vous êtes propriétaire ou locataire ?",
+      "short": "Propriétaire ou locataire",
+      "simple": "Ce logement est à vous ? Ou vous payez un loyer ?",
+      "when": { "q": "lieu_vie", "eq": "logement_independant" },
+      "options": [
+        { "id": "proprietaire", "label": "Propriétaire" },
+        { "id": "locataire", "label": "Locataire" }
+      ]
+    },
+    {
+      "id": "etablissement_details",
+      "section": "B1",
+      "type": "text",
+      "label": "Donnez le nom, le type et le lieu de l'établissement.",
+      "short": "L'établissement",
+      "simple": "Comment s'appelle l'établissement ? C'est quoi comme endroit ? Il est dans quelle ville ?",
+      "when": { "q": "lieu_vie", "eq": "etablissement" }
+    },
+    {
+      "id": "hebergeur",
+      "section": "B1",
+      "type": "single",
+      "label": "Chez qui vivez-vous ?",
+      "short": "Chez qui vous vivez",
+      "simple": "Vous habitez chez qui ?",
+      "when": { "q": "lieu_vie", "eq": "heberge" },
+      "options": [
+        { "id": "parents", "label": "De vos parents (ou l'un d'entre eux)" },
+        { "id": "enfants", "label": "De vos enfants (ou l'un d'entre eux)" },
+        { "id": "ami", "label": "D'un(e) ami(e)", "synonyms": ["ami", "amie", "amis", "copain", "copine"] },
+        { "id": "famille", "label": "D'un autre membre de votre famille" },
+        { "id": "famille_accueil", "label": "D'une famille d'accueil" }
+      ]
+    },
+    {
+      "id": "lieu_vie_autre",
+      "section": "B1",
+      "type": "text",
+      "label": "Autre situation : précisez où vous vivez.",
+      "short": "Précision : où vous vivez",
+      "simple": "Dites où vous habitez.",
+      "when": { "q": "lieu_vie", "eq": "autre" }
+    },
+    {
+      "id": "accidents",
+      "section": "B1",
+      "type": "multi",
+      "label": "Avez-vous déjà eu un accident ?",
+      "short": "Accidents",
+      "simple": "Avez-vous eu un accident ? Par exemple au travail. Ou un accident à cause d'une autre personne.",
+      "allowNone": true,
+      "options": [
+        { "id": "tiers", "label": "Un accident causé par un tiers" },
+        { "id": "travail", "label": "Un accident du travail" },
+        { "id": "autre", "label": "Un autre accident" }
+      ]
+    },
+    {
+      "id": "accident_autre",
+      "section": "B1",
+      "type": "text",
+      "label": "Précisez l'autre accident.",
+      "short": "Précision : l'accident",
+      "simple": "Racontez en quelques mots cet accident.",
+      "when": { "q": "accidents", "includes": "autre" }
+    },
+    {
+      "id": "indemnisation",
+      "section": "B1",
+      "type": "yesno",
+      "label": "Suite à cet accident, y a-t-il une demande d'indemnisation en cours ou ayant abouti ?",
+      "short": "Demande d'indemnisation",
+      "simple": "Après l'accident, avez-vous demandé de l'argent pour réparer le préjudice ? Même si c'est fini ?",
+      "when": { "q": "accidents", "nonEmpty": true }
+    },
+    {
+      "id": "indemnisation_organisme",
+      "section": "B1",
+      "type": "text",
+      "label": "Auprès de quel organisme ?",
+      "short": "Organisme d'indemnisation",
+      "simple": "Vous avez demandé cet argent à qui ? Par exemple une assurance.",
+      "when": { "q": "indemnisation", "eq": "oui" }
+    },
+
+    {
+      "id": "aides_recues",
+      "section": "B1-aides",
+      "type": "multi",
+      "label": "Recevez-vous actuellement l'une de ces aides ?",
+      "short": "Aides reçues",
+      "simple": "Aujourd'hui, recevez-vous de l'argent de l'État ? Par exemple l'AAH, le RSA, le chômage ou l'ASS.",
+      "allowNone": true,
+      "options": [
+        { "id": "aah", "label": "Allocation aux adultes handicapés (AAH)" },
+        { "id": "rsa", "label": "Revenu de solidarité active (RSA)" },
+        { "id": "chomage", "label": "Allocation chômage versée par France Travail (ex-Pôle emploi)", "synonyms": ["ARE", "chômage", "France Travail", "Pôle emploi"] },
+        { "id": "ass", "label": "Allocation de solidarité spécifique (ASS)" }
+      ]
+    },
+    {
+      "id": "revenus_12mois",
+      "section": "B1-aides",
+      "type": "multi",
+      "label": "Dans les 12 derniers mois, avez-vous perçu l'un de ces revenus ?",
+      "short": "Revenus des 12 derniers mois",
+      "simple": "Pendant la dernière année, avez-vous gagné de l'argent ? Par un travail ? Par un travail en ESAT ? Ou par un arrêt maladie payé ?",
+      "allowNone": true,
+      "options": [
+        { "id": "activite", "label": "Un revenu d'activité", "synonyms": ["salaire", "emploi", "travail", "entreprise adaptée", "intérim", "auto-entrepreneur", "petit boulot"] },
+        { "id": "esat", "label": "Un revenu issu d'une activité en ESAT", "synonyms": ["atelier protégé", "CAT", "centre d'aide par le travail", "travail protégé", "milieu protégé", "entreprise pour personnes handicapées", "établissement pour travailleurs handicapés"] },
+        { "id": "ij", "label": "Des indemnités journalières", "synonyms": ["arrêt maladie", "arrêt de travail", "indemnités de la Sécurité sociale"] }
+      ]
+    },
+    {
+      "id": "ij_du",
+      "section": "B1-aides",
+      "type": "date",
+      "label": "Indemnités journalières : date de début",
+      "short": "Indemnités : date de début",
+      "simple": "Votre arrêt maladie payé a commencé quel jour ?",
+      "when": { "q": "revenus_12mois", "includes": "ij" }
+    },
+    {
+      "id": "ij_au",
+      "section": "B1-aides",
+      "type": "date",
+      "label": "Indemnités journalières : date de fin",
+      "short": "Indemnités : date de fin",
+      "optional": true,
+      "hint": "Laissez vide si vous les touchez encore.",
+      "simple": "Votre arrêt maladie payé s'est arrêté quel jour ? Si ce n'est pas fini, dites « pas encore fini ».",
+      "when": { "q": "revenus_12mois", "includes": "ij" }
+    },
+    {
+      "id": "pension_invalidite",
+      "section": "B1-aides",
+      "type": "single",
+      "label": "Recevez-vous une pension d'invalidité ? Si oui, de quelle catégorie ?",
+      "short": "Pension d'invalidité",
+      "simple": "Recevez-vous une pension d'invalidité ? C'est de l'argent de la Sécurité sociale quand on ne peut plus bien travailler. Il y a 3 catégories : 1, 2 ou 3.",
+      "options": [
+        { "id": "non", "label": "Non" },
+        { "id": "cat1", "label": "1re catégorie", "synonyms": ["première", "premier", "catégorie 1", "catégorie un", "la 1"] },
+        { "id": "cat2", "label": "2e catégorie", "synonyms": ["deuxième", "seconde", "catégorie 2", "catégorie deux", "la 2"] },
+        { "id": "cat3", "label": "3e catégorie", "synonyms": ["troisième", "catégorie 3", "catégorie trois", "la 3"] }
+      ]
+    },
+    {
+      "id": "pension_invalidite_depuis",
+      "section": "B1-aides",
+      "type": "date",
+      "label": "Pension d'invalidité : depuis quelle date ?",
+      "short": "Pension d'invalidité : depuis quand",
+      "simple": "Vous recevez cette pension depuis quel jour ?",
+      "when": { "q": "pension_invalidite", "in": ["cat1", "cat2", "cat3"] }
+    },
+    {
+      "id": "autres_pensions",
+      "section": "B1-aides",
+      "type": "multi",
+      "label": "Recevez-vous l'une de ces autres pensions ou prestations ?",
+      "short": "Autres pensions",
+      "simple": "Recevez-vous une autre aide ? Par exemple une rente après un accident du travail. Ou de l'argent pour payer une personne qui vous aide.",
+      "allowNone": true,
+      "options": [
+        { "id": "autres_pensions", "label": "Autres pensions de ce type (pension des deux tiers, d'incapacité…)" },
+        { "id": "majoration_tierce", "label": "Majoration tierce personne", "synonyms": ["MTP"] },
+        { "id": "asi", "label": "Allocation supplémentaire d'invalidité", "synonyms": ["ASI"] },
+        { "id": "rente_at", "label": "Rente d'accident ou maladie professionnelle" },
+        { "id": "pctp", "label": "Prestation complémentaire de recours à tierce personne", "synonyms": ["PCRTP"] },
+        { "id": "retraite_inaptitude", "label": "Retraite pour inaptitude dans la fonction publique ou retraite anticipée" }
+      ]
+    },
+    {
+      "id": "retraite_inaptitude_depuis",
+      "section": "B1-aides",
+      "type": "date",
+      "label": "Retraite pour inaptitude ou anticipée : depuis quelle date ?",
+      "short": "Retraite pour inaptitude : depuis quand",
+      "simple": "Vous êtes à la retraite depuis quel jour ?",
+      "beforeToday": true,
+      "when": { "q": "autres_pensions", "includes": "retraite_inaptitude" }
+    },
+    {
+      "id": "taux_ipp",
+      "section": "B1-aides",
+      "type": "number",
+      "unit": "%",
+      "label": "Si vous le connaissez, quel est votre taux d'IPP (incapacité permanente partielle) ?",
+      "short": "Taux d'IPP",
+      "optional": true,
+      "simple": "Après un accident du travail, un médecin donne un chiffre en pourcentage. On l'appelle le taux d'IPP. Vous le connaissez ? Sinon, dites « je ne sais pas ».",
+      "when": { "anyOf": [
+        { "q": "accidents", "includes": "travail" },
+        { "q": "autres_pensions", "includes": "rente_at" }
+      ] }
+    },
+    {
+      "id": "retraite",
+      "section": "B1-aides",
+      "type": "multi",
+      "label": "La retraite ou l'une de ces aides pour personnes âgées vous concerne-t-elle ?",
+      "short": "Retraite et aides aux personnes âgées",
+      "simple": "Êtes-vous à la retraite ? Avez-vous demandé la retraite ? Recevez-vous l'ASPA ou l'APA ? Ce sont des aides pour les personnes âgées.",
+      "allowNone": true,
+      "when": { "q": "concerne", "ne": "enfant" },
+      "options": [
+        { "id": "pension_retraite", "label": "Pension de retraite" },
+        { "id": "aspa", "label": "Vous êtes bénéficiaire de l'ASPA (Allocation de solidarité aux personnes âgées)" },
+        { "id": "demande_retraite", "label": "Vous avez demandé une pension de retraite" },
+        { "id": "apa", "label": "Vous êtes bénéficiaire de l'APA (Allocation personnalisée d'autonomie)" }
+      ]
+    },
+    {
+      "id": "retraite_depuis",
+      "section": "B1-aides",
+      "type": "date",
+      "label": "Vous êtes retraité(e) depuis quelle date ?",
+      "short": "Retraite : depuis quand",
+      "simple": "Vous êtes à la retraite depuis quel jour ?",
+      "beforeToday": true,
+      "when": { "q": "retraite", "includes": "pension_retraite" }
+    },
+
+    {
+      "id": "aide_technique",
+      "section": "B1-comp",
+      "type": "multi",
+      "label": "Utilisez-vous une aide technique, du matériel ou un équipement ?",
+      "short": "Aide technique et matériel",
+      "simple": "Utilisez-vous du matériel pour vous aider ? Par exemple un fauteuil roulant, une barre pour vous tenir, une voiture ou une maison adaptée, un chien d'aide.",
+      "allowNone": true,
+      "options": [
+        { "id": "amenagement_logement", "label": "Aménagement de logement" },
+        { "id": "amenagement_vehicule", "label": "Aménagement de véhicule" },
+        { "id": "aides_animalieres", "label": "Aides animalières" },
+        { "id": "aides_techniques", "label": "Aides techniques (barre d'appui, déambulateur…)" },
+        { "id": "autres", "label": "Autres" }
+      ]
+    },
+    {
+      "id": "aides_techniques_details",
+      "section": "B1-comp",
+      "type": "text",
+      "label": "Aides techniques : précisez.",
+      "short": "Précision : aides techniques",
+      "hint": "Par exemple : barre d'appui, déambulateur.",
+      "simple": "Dites quel matériel vous utilisez. Par exemple : une barre pour vous tenir, un déambulateur.",
+      "when": { "q": "aide_technique", "includes": "aides_techniques" }
+    },
+    {
+      "id": "aide_technique_details",
+      "section": "B1-comp",
+      "type": "text",
+      "label": "Autres aides, matériel ou équipements : précisez.",
+      "short": "Précision : autre matériel",
+      "simple": "Dites quel autre matériel ou équipement vous utilisez.",
+      "when": { "q": "aide_technique", "includes": "autres" }
+    },
+    {
+      "id": "aide_personne",
+      "section": "B1-comp",
+      "type": "multi",
+      "label": "Une personne vous aide-t-elle ?",
+      "short": "Aide d'une personne",
+      "simple": "Est-ce qu'une personne vous aide ? Quelqu'un de votre famille ? Un service de soins ou d'aide à domicile ? Un service spécialisé ?",
+      "allowNone": true,
+      "options": [
+        { "id": "famille", "label": "Votre famille" },
+        { "id": "pro_soins", "label": "Professionnel de soins à domicile", "synonyms": ["service de soins à domicile", "SSIAD", "infirmier", "infirmière", "aide-soignant", "aide-soignante"] },
+        { "id": "medico_social", "label": "Un accompagnement médico-social", "synonyms": ["SAVS", "SAMSAH", "SESSAD", "éducateur", "éducatrice"] },
+        { "id": "autres", "label": "Autres" }
+      ]
+    },
+    {
+      "id": "aide_personne_autres",
+      "section": "B1-comp",
+      "type": "text",
+      "label": "Précisez qui d'autre vous aide.",
+      "short": "Précision : qui vous aide",
+      "simple": "Dites qui vous aide.",
+      "when": { "q": "aide_personne", "includes": "autres" }
+    },
+    {
+      "id": "parent_activite_reduite",
+      "section": "B1-comp",
+      "type": "yesno",
+      "label": "Du fait du handicap de votre enfant, travaillez-vous à temps partiel ou avez-vous dû arrêter de travailler ?",
+      "short": "Votre activité professionnelle",
+      "simple": "À cause du handicap de votre enfant, vous travaillez moins ? Ou vous avez arrêté de travailler ?",
+      "when": { "q": "concerne", "eq": "enfant" }
+    },
+    {
+      "id": "parent_quotite",
+      "section": "B1-comp",
+      "type": "number",
+      "unit": "%",
+      "label": "Si vous travaillez à temps partiel, quelle est votre quotité de travail ?",
+      "short": "Quotité de travail",
+      "optional": true,
+      "simple": "Vous travaillez combien, en pourcentage ? Par exemple 50 % pour un mi-temps. 80 % pour 4 jours sur 5.",
+      "when": { "q": "parent_activite_reduite", "eq": "oui" }
+    },
+    {
+      "id": "tierce_heures_semaine",
+      "section": "B1-comp",
+      "type": "number",
+      "unit": "heures par semaine",
+      "label": "Si vous payez une personne pour s'occuper de votre enfant à cause de son handicap : combien d'heures par semaine ?",
+      "short": "Heures d'aide par semaine",
+      "optional": true,
+      "simple": "Payez-vous quelqu'un pour garder ou aider votre enfant ? Combien d'heures chaque semaine ? Si vous ne payez personne, dites « non ».",
+      "when": { "q": "concerne", "eq": "enfant" }
+    },
+    {
+      "id": "tierce_heures_an",
+      "section": "B1-comp",
+      "type": "number",
+      "unit": "heures par an",
+      "label": "Si cet emploi n'est pas régulier, estimez le nombre d'heures par an.",
+      "short": "Heures d'aide par an",
+      "optional": true,
+      "simple": "Si ce n'est pas toutes les semaines : combien d'heures en tout sur une année, à peu près ?",
+      "when": { "q": "concerne", "eq": "enfant" }
+    },
+    {
+      "id": "frais",
+      "section": "B1-comp",
+      "type": "table",
+      "label": "Avez-vous des frais liés au handicap qui restent à votre charge ?",
+      "short": "Frais à votre charge",
+      "simple": "À cause du handicap, payez-vous des choses avec votre argent ? Par exemple : des protections, un fauteuil, des séances chez un psychologue. Ce sont des dépenses que la Sécurité sociale et la mutuelle ne vous remboursent pas, ou pas en entier.",
+      "hint": "Frais non remboursés ou remboursés en partie par l'assurance maladie ou la mutuelle.",
+      "columns": [
+        { "id": "frais", "label": "Ce que vous payez", "hint": "Par exemple : des protections, des séances de psychologue." },
+        { "id": "frequence", "label": "Fréquence", "hint": "Par exemple : chaque mois, une seule fois." },
+        { "id": "montant_total", "label": "Montant payé", "kind": "money", "hint": "Pour la fréquence indiquée." },
+        { "id": "montant_rembourse", "label": "Montant remboursé", "kind": "money", "hint": "Indiquez 0 si rien n'est remboursé." },
+        { "id": "precisions", "label": "Précisions", "optional": true, "wide": true }
+      ],
+      "rowLabel": "Frais",
+      "addLabel": "Ajouter un autre frais",
+      "noneLabel": "Je n'ai pas de frais à déclarer",
+      "maxRows": 3
+    },
+
+    {
+      "id": "besoins_domicile",
+      "openAnswer": true,
+      "section": "B2",
+      "type": "multi",
+      "label": "Pour la vie à la maison, pour quelles activités avez-vous besoin d'aide ?",
+      "short": "Besoins à la maison",
+      "simple": "À la maison, qu'est-ce qui est difficile ? Pour quoi avez-vous besoin d'aide ? Par exemple : se laver, s'habiller, faire à manger, faire le ménage, faire les courses, payer les factures, prendre les médicaments.",
+      "hint": "Le besoin d'aide peut être une aide humaine, un besoin de conseils ou d'encouragements, ou une aide matérielle ou financière.",
+      "allowNone": true,
+      "options": [
+        { "id": "depenses", "label": "Pour régler les dépenses courantes (loyer, énergie, habillement, alimentation…)" },
+        { "id": "budget", "label": "Pour gérer son budget et répondre aux obligations (démarches administratives, assurances, impôts…)" },
+        { "id": "hygiene", "label": "Pour l'hygiène corporelle (se laver, aller aux toilettes)" },
+        { "id": "habiller", "label": "Pour s'habiller (mettre et ôter les vêtements, les choisir…)" },
+        { "id": "courses", "label": "Pour faire les courses" },
+        { "id": "preparer_repas", "label": "Pour préparer les repas" },
+        { "id": "prendre_repas", "label": "Pour prendre les repas" },
+        { "id": "menage", "label": "Pour faire le ménage et l'entretien des vêtements" },
+        { "id": "sante", "label": "Pour prendre soin de sa santé (suivre un traitement, aller en consultation…)" },
+        { "id": "autre", "label": "Autre besoin" }
+      ]
+    },
+    {
+      "id": "besoins_domicile_autre",
+      "section": "B2",
+      "type": "text",
+      "label": "Autre besoin pour la vie à domicile : précisez.",
+      "short": "Précision : à la maison",
+      "simple": "Dites ce qui est difficile pour vous à la maison.",
+      "when": { "q": "besoins_domicile", "includes": "autre" }
+    },
+    {
+      "id": "besoins_deplacement",
+      "openAnswer": true,
+      "section": "B2",
+      "type": "multi",
+      "label": "Pour vous déplacer, pour quoi avez-vous besoin d'aide ?",
+      "short": "Besoins pour vous déplacer",
+      "simple": "Pour vous déplacer, qu'est-ce qui est difficile ? Marcher dans la maison ? Sortir de la maison ? Prendre le bus ou le train ? Conduire ? Partir en vacances ?",
+      "allowNone": true,
+      "options": [
+        { "id": "domicile", "label": "Pour se déplacer dans le domicile", "synonyms": ["dans la maison", "dans l'appartement", "dans mon logement", "d'une pièce à l'autre", "me lever"] },
+        { "id": "sortir", "label": "Pour sortir du domicile ou y entrer", "synonyms": ["sortir de chez moi", "rentrer chez moi", "entrer chez moi", "sortir de la maison", "escaliers de l'immeuble", "ascenseur", "porte d'entrée"] },
+        { "id": "exterieur", "label": "Pour se déplacer à l'extérieur du domicile", "synonyms": ["dehors", "dans la rue", "traverser", "trottoir", "marcher en ville", "aller chez le médecin", "aller à la pharmacie"] },
+        { "id": "vehicule", "label": "Pour utiliser un véhicule", "synonyms": ["voiture", "conduire", "moto", "scooter", "vélo"] },
+        { "id": "transports", "label": "Pour utiliser les transports en commun", "synonyms": ["bus", "autobus", "métro", "tram", "tramway", "train", "RER", "transport en commun"] },
+        { "id": "vacances", "label": "Pour partir en vacances", "synonyms": ["voyage", "voyager", "congés", "partir en week-end"] },
+        { "id": "autre", "label": "Autre situation" }
+      ]
+    },
+    {
+      "id": "besoins_deplacement_autre",
+      "section": "B2",
+      "type": "text",
+      "label": "Autre situation pour vos déplacements : précisez.",
+      "short": "Précision : déplacements",
+      "simple": "Dites ce qui est difficile pour vous quand vous vous déplacez.",
+      "when": { "q": "besoins_deplacement", "includes": "autre" }
+    },
+    {
+      "id": "transports_adaptes",
+      "section": "B2",
+      "type": "yesno",
+      "label": "Utilisez-vous les transports adaptés proposés localement pour vous déplacer ?",
+      "short": "Transports adaptés",
+      "simple": "Utilisez-vous un transport spécial pour les personnes handicapées ? Par exemple un minibus qu'on réserve à l'avance."
+    },
+    {
+      "id": "besoins_vie_sociale",
+      "openAnswer": true,
+      "section": "B2",
+      "type": "multi",
+      "label": "Pour la vie sociale, pour quoi avez-vous besoin d'aide ?",
+      "short": "Besoins pour la vie sociale",
+      "simple": "Avec les autres personnes, qu'est-ce qui est difficile ? Parler et se faire comprendre ? Faire du sport ou des loisirs ? S'occuper de sa famille ? Aller voter ? Être en sécurité ?",
+      "allowNone": true,
+      "options": [
+        { "id": "exprimer", "label": "Pour s'exprimer, se faire comprendre, entendre", "synonyms": ["parler", "communiquer", "téléphoner", "langue des signes", "appareil auditif"] },
+        { "id": "loisirs", "label": "Pour avoir des activités sportives et des loisirs", "synonyms": ["sport", "piscine", "cinéma", "musique", "club", "activités"] },
+        { "id": "relations", "label": "Pour les relations avec les autres", "synonyms": ["amis", "copains", "voisins", "rencontrer des gens", "me faire des amis"] },
+        { "id": "famille", "label": "Pour s'occuper de sa famille", "synonyms": ["mes enfants", "mon enfant", "mon bébé", "mon conjoint", "mes parents"] },
+        { "id": "citoyennete", "label": "Pour être accompagné(e) dans la vie citoyenne (aller voter, vie associative…)", "synonyms": ["voter", "élections", "association", "bénévolat"] },
+        { "id": "securite", "label": "Pour assurer sa sécurité", "synonyms": ["danger", "me protéger", "tomber", "chute", "me perdre", "être en sécurité"] },
+        { "id": "autre", "label": "Autre besoin" }
+      ]
+    },
+    {
+      "id": "besoins_vie_sociale_autre",
+      "section": "B2",
+      "type": "text",
+      "label": "Autre besoin pour la vie sociale : précisez.",
+      "short": "Précision : vie sociale",
+      "simple": "Dites ce qui est difficile pour vous avec les autres personnes.",
+      "when": { "q": "besoins_vie_sociale", "includes": "autre" }
+    },
+
+    {
+      "id": "attentes",
+      "openAnswer": true,
+      "section": "B3",
+      "type": "multi",
+      "label": "Quels sont vos souhaits pour compenser la situation de handicap ?",
+      "short": "Vos souhaits",
+      "simple": "Qu'est-ce qui vous aiderait ? Par exemple : rester chez vous, vivre dans un établissement, avoir une personne qui aide, du matériel, de l'argent, adapter la maison.",
+      "allowNone": true,
+      "options": [
+        { "id": "domicile", "label": "Vivre à domicile" },
+        { "id": "etablissement", "label": "Vivre en établissement" },
+        { "id": "amenagement", "label": "Un aménagement du lieu de vie" },
+        { "id": "aide_humaine", "label": "Une aide humaine : quelqu'un qui aide" },
+        { "id": "deplacement", "label": "Une aide pour se déplacer" },
+        { "id": "materiel", "label": "Du matériel ou équipement" },
+        { "id": "financiere_depenses", "label": "Une aide financière pour des dépenses liées au handicap" },
+        { "id": "readaptation", "label": "Un accompagnement pour l'adaptation / réadaptation à la vie quotidienne" },
+        { "id": "accueil_temporaire", "label": "Un accueil temporaire en établissement" },
+        { "id": "animaliere", "label": "Une aide animalière" },
+        { "id": "bilan", "label": "Réaliser un bilan des capacités dans la vie quotidienne" },
+        { "id": "revenu_minimum", "label": "Une aide financière afin d'assurer un revenu minimum (compléter aussi la partie D)" },
+        { "id": "autre", "label": "Autre attente" }
+      ]
+    },
+    {
+      "id": "attentes_autre",
+      "section": "B3",
+      "type": "text",
+      "label": "Autre attente : précisez.",
+      "short": "Précision : autre souhait",
+      "simple": "Dites ce qui vous aiderait d'autre.",
+      "when": { "q": "attentes", "includes": "autre" }
+    },
+    {
+      "id": "etablissement_identifie",
+      "section": "B3",
+      "type": "yesno",
+      "label": "Avez-vous déjà identifié un établissement ou un service d'accueil, d'accompagnement ou de soin qui pourrait répondre à vos attentes ?",
+      "short": "Établissement identifié",
+      "simple": "Connaissez-vous déjà un endroit ou un service qui pourrait vous aider ? Par exemple un foyer, un SAVS ou un SESSAD."
+    },
+    {
+      "id": "etablissements",
+      "section": "B3",
+      "type": "table",
+      "label": "Lequel ou lesquels ? Êtes-vous en contact avec eux ?",
+      "short": "Établissements et contacts",
+      "simple": "Comment s'appelle cet endroit ? Avez-vous déjà parlé avec eux ?",
+      "when": { "q": "etablissement_identifie", "eq": "oui" },
+      "columns": [
+        { "id": "nom", "label": "Nom de l'établissement ou du service" },
+        { "id": "en_contact", "label": "En contact avec eux", "options": ["Oui", "Non"] }
+      ],
+      "rowLabel": "Établissement",
+      "addLabel": "Ajouter un autre établissement",
+      "maxRows": 2
+    },
+
+    {
+      "id": "autres_renseignements",
+      "section": "B4",
+      "type": "longtext",
+      "label": "Avez-vous d'autres renseignements importants (situation, attentes, projets) concernant votre vie quotidienne ?",
+      "short": "Autres renseignements",
+      "optional": true,
+      "simple": "Voulez-vous dire autre chose sur votre vie de tous les jours ? Ce qui est difficile ? Ce que vous voulez ? Vos projets ? Racontez avec vos mots. Je vais écrire un texte clair pour vous.",
+      "hint": "Racontez avec vos mots : l'assistant vous posera quelques questions puis proposera un texte que vous pourrez modifier."
+    }
+  ],
+  "documents": [
+    "Justificatifs, factures ou devis concernant les frais évoqués en B1 et B3",
+    "En cas de réduction d'activité professionnelle pour s'occuper de l'enfant : contrat de travail, bulletin de salaire ou attestation de l'employeur",
+    "En cas d'emploi rémunéré d'une tierce personne : attestation d'emploi, contrat de travail, déclaration URSSAF ou facture d'un service à domicile précisant le nombre d'heures",
+    "En cas de pension de retraite ou d'invalidité avec majoration tierce personne, ou de rente AT/MP avec prestation pour tierce personne : copie du justificatif",
+    "Justificatif d'attribution d'une pension d'invalidité",
+    "Copie de la décision de rente d'accident du travail ou maladie professionnelle"
+  ]
+}
