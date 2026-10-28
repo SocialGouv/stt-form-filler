@@ -22,13 +22,13 @@ python3 -m venv .venv
 
 La configuration se fait dans le fichier `.env` à la racine (jamais versionné, il contient la clé) : copiez `.env.example` en `.env`, puis renseignez votre clé. Vous pouvez aussi définir ces valeurs comme variables d'environnement, qui l'emportent sur le fichier. Sans clé, le site fonctionne en mode simplifié sans IA.
 
-- **Albert API** (IA de l'État, hébergée en France) :
+- **Tout fournisseur compatible API OpenAI** (chat completions) :
   ```
-  LLM_PROVIDER=albert
-  ALBERT_API_KEY=...
-  ALBERT_MODEL=albert-large        # liste : .venv/bin/python llm.py models
+  LLM_PROVIDER=openai
+  OPENAI_API_KEY=...
+  OPENAI_MODEL=albert-large        # liste : .venv/bin/python llm.py models
   ```
-  `ALBERT_BASE_URL` est facultatif (défaut `https://albert.api.etalab.gouv.fr/v1`). La réponse est contrainte par schéma JSON ; si le modèle ne l'accepte pas, le serveur bascule sur le mode « objet JSON ».
+  Par défaut, `OPENAI_BASE_URL` pointe vers **Albert API** (IA de l'État, hébergée en France : `https://albert.api.etalab.gouv.fr/v1`, clé à demander à Etalab). Pour utiliser une autre passerelle (par exemple une instance **LiteLLM**), changer `OPENAI_BASE_URL`, `OPENAI_API_KEY` et `OPENAI_MODEL` : aucun autre réglage ni changement de code n'est nécessaire. La réponse est contrainte par schéma JSON ; si le modèle ne l'accepte pas, le serveur bascule sur le mode « objet JSON ».
 - **Claude** (Anthropic) : `LLM_PROVIDER=anthropic` et `ANTHROPIC_API_KEY=sk-ant-...`.
 
 Les variables d'environnement définies au lancement l'emportent sur le fichier `.env`.
@@ -46,8 +46,8 @@ Variables facultatives : `MDPH_CLAUDE_MODEL` (défaut `claude-opus-5`), `MDPH_CL
 
 Le script lance le serveur (s'il ne tourne pas déjà) et ouvre un tunnel Cloudflare : il affiche l'adresse en HTTPS (`https://….trycloudflare.com`) à envoyer aux testeurs. Laisser la fenêtre ouverte pendant les tests ; `Ctrl+C` ferme l'accès. Le Mac ne se met pas en veille tant que le tunnel est ouvert.
 
-- La clé Albert reste dans `.env`, sur cet ordinateur : le navigateur des testeurs ne la reçoit jamais.
-- Par défaut, l'accès est libre : **toute personne qui a le lien** peut utiliser le site, et donc le quota Albert. Ne transmettre le lien qu'aux testeurs et fermer le tunnel après chaque session. Pour demander un identifiant et un mot de passe : remplir `ACCES_IDENTIFIANT` et `ACCES_MOT_DE_PASSE` dans `.env`, puis relancer le serveur.
+- La clé de l'IA reste dans `.env`, sur cet ordinateur : le navigateur des testeurs ne la reçoit jamais.
+- Par défaut, l'accès est libre : **toute personne qui a le lien** peut utiliser le site, et donc le quota de l'IA configurée. Ne transmettre le lien qu'aux testeurs et fermer le tunnel après chaque session. Pour demander un identifiant et un mot de passe : remplir `ACCES_IDENTIFIANT` et `ACCES_MOT_DE_PASSE` dans `.env`, puis relancer le serveur.
 - L'adresse change à chaque lancement du tunnel.
 - Le trafic passe par Cloudflare : faire tester avec des **données fictives** (pas de vraies données de santé hors d'un hébergement conforme HDS).
 - Prévu pour quelques testeurs à la fois (serveur de développement, voix synthétisée une phrase à la fois). Pour une campagne plus large, héberger le service (Scalingo, Clever Cloud…).
@@ -58,7 +58,7 @@ Le script lance le serveur (s'il ne tourne pas déjà) et ouvre un tunnel Cloudf
 - `static/form-b.json` décrit la partie B : questions, options, versions simplifiées (`simple`), conditions d'affichage (`when`), étapes du parcours (`steps`, qui regroupent les sections) et intitulés courts du menu (`short`). **C'est le seul fichier à modifier pour faire évoluer le questionnaire.**
 - L'écran des questions est découpé en étapes (indicateur d'étapes DSFR). À gauche, le menu latéral liste les étapes et leurs questions avec leur statut ; à droite, seule la question en cours est affichée. On y répond en cochant, en écrivant dans son champ ou en parlant (la voix coche et remplit la question).
 - Le navigateur lit la question (synthèse vocale) puis écoute la réponse (Web Speech API).
-- La phrase est envoyée à `/api/interpret`. Le modèle (Albert ou Claude) renvoie un JSON structuré (sortie contrainte par schéma) : valeurs à cocher ou à remplir, intention (répondre, demander de l'aide, passer, revenir…) et message à lire.
+- La phrase est envoyée à `/api/interpret`. Le modèle (fournisseur compatible OpenAI, Albert par défaut, ou Claude) renvoie un JSON structuré (sortie contrainte par schéma) : valeurs à cocher ou à remplir, intention (répondre, demander de l'aide, passer, revenir…) et message à lire.
 - « Je ne comprends pas » : l'IA reformule la question en langage simple. Sans IA, la version simplifiée écrite dans le schéma (`simple`) est utilisée.
 - Champs libres : Claude pose au maximum 3 relances, rédige un texte à la première personne, le relit et attend la validation.
 - Si l'API ne répond pas, `static/js/local-nlu.js` prend le relais (mots-clés, oui/non, dates, nombres).
@@ -69,7 +69,7 @@ Le script lance le serveur (s'il ne tourne pas déjà) et ouvre un tunnel Cloudf
 
 ```
 app.py               serveur Flask, en-têtes de sécurité, API
-llm.py               prompt, schéma de réponse, appel à Albert ou Claude
+llm.py               prompt, schéma de réponse, appel au fournisseur compatible OpenAI (Albert par défaut) ou à Claude
 tts.py               voix naturelles (Piper) : /api/tts
 pdf_cerfa.py         remplissage de la partie B du Cerfa (correspondance questions → champs du PDF)
 pdf/cerfa_15692-01.pdf  Cerfa 15692*01 officiel à champs remplissables (non servi tel quel)
@@ -88,6 +88,6 @@ docs/generateur/     production du PDF : captures.py, cerfa.py, build.py, print.
 ## Avant une mise en production
 
 - **Audit RGAA** par un auditeur, puis mise à jour de `static/accessibilite.html` (statut, organisme, contact).
-- **Données de santé** : les phrases partent vers l'API d'IA choisie (Albert ou Claude) et, pour la reconnaissance vocale, vers les serveurs de Google (Chrome) ou d'Apple (Safari). Il faut une analyse d'impact (AIPD), une information claire des usagers, et vérifier les exigences d'hébergement de données de santé (HDS). Une reconnaissance vocale hébergée côté serveur (par exemple Whisper) supprimerait la dépendance au navigateur.
+- **Données de santé** : les phrases partent vers l'API d'IA choisie (un fournisseur compatible OpenAI comme Albert, ou Claude) et, pour la reconnaissance vocale, vers les serveurs de Google (Chrome) ou d'Apple (Safari). Il faut une analyse d'impact (AIPD), une information claire des usagers, et vérifier les exigences d'hébergement de données de santé (HDS). Une reconnaissance vocale hébergée côté serveur (par exemple Whisper) supprimerait la dépendance au navigateur.
 - **Marque de l'État** : le DSFR et le bloc « République française » sont réservés aux sites de l'administration. Un site privé doit retirer le bloc-marque.
 - Tests avec des usagers (lecteur d'écran, troubles de la parole, déficience intellectuelle).

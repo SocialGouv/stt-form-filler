@@ -6,9 +6,11 @@ Le modèle renvoie un JSON structuré (valeurs à remplir + message à dire à l
 
 Deux fournisseurs, choisis par LLM_PROVIDER :
 - "anthropic" (défaut) : Claude, clé ANTHROPIC_API_KEY ;
-- "albert" : Albert API de l'État (compatible OpenAI), clé ALBERT_API_KEY.
+- tout autre valeur (par exemple "openai") : n'importe quel fournisseur compatible avec l'API
+  OpenAI (chat completions) — Albert API de l'État par défaut, ou une autre passerelle comme
+  LiteLLM. Réglages : OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL.
 
-Lancé directement (`python llm.py models`), liste les modèles Albert disponibles.
+Lancé directement (`python llm.py models`), liste les modèles disponibles chez ce fournisseur.
 """
 import datetime
 import json
@@ -51,17 +53,19 @@ MODEL_CLAUDE = os.environ.get("MDPH_CLAUDE_MODEL", "claude-opus-5")
 # Conversation vocale : on privilégie la réactivité.
 EFFORT = os.environ.get("MDPH_CLAUDE_EFFORT", "low")
 
-ALBERT_BASE_URL = os.environ.get("ALBERT_BASE_URL", "https://albert.api.etalab.gouv.fr/v1").rstrip("/")
-ALBERT_MODEL = os.environ.get("ALBERT_MODEL", "albert-large")
+# Fournisseur compatible OpenAI (chat completions) : Albert API de l'État par défaut, mais
+# OPENAI_BASE_URL peut pointer vers n'importe quelle passerelle compatible (LiteLLM...).
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://albert.api.etalab.gouv.fr/v1").rstrip("/")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "albert-large")
 
-MODEL = ALBERT_MODEL if PROVIDER == "albert" else MODEL_CLAUDE
+MODEL = MODEL_CLAUDE if PROVIDER == "anthropic" else OPENAI_MODEL
 
 
 def configured():
     """Vrai si une clé est fournie pour le fournisseur choisi."""
-    if PROVIDER == "albert":
-        return bool(os.environ.get("ALBERT_API_KEY"))
-    return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    if PROVIDER == "anthropic":
+        return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    return bool(os.environ.get("OPENAI_API_KEY"))
 
 
 _client = None
@@ -266,10 +270,10 @@ def find_question(candidates, utterance):
 
 def _complete(system_text, user_text, schema, cache=False):
     """Appelle le modèle configuré et renvoie sa réponse JSON (dict)."""
-    if PROVIDER == "albert":
-        text = _call_albert(system_text, user_text, schema)
-    else:
+    if PROVIDER == "anthropic":
         text = _call_claude(system_text, user_text, schema, cache)
+    else:
+        text = _call_openai(system_text, user_text, schema)
     try:
         data = json.loads(_strip_fences(text))
     except json.JSONDecodeError as e:
@@ -345,25 +349,25 @@ def _call_claude(system_text, user_text, schema, cache=False):
     return "".join(b.text for b in response.content if b.type == "text")
 
 
-# Albert : consignes et schéma dans le message système. Sortie contrainte par
-# schéma si le modèle l'accepte ; sinon on retombe sur le mode « objet JSON »
-# (le schéma, rappelé dans le prompt, guide alors la réponse).
+# Fournisseur compatible OpenAI (Albert, LiteLLM...) : consignes et schéma dans le message
+# système. Sortie contrainte par schéma si le modèle l'accepte ; sinon on retombe sur le mode
+# « objet JSON » (le schéma, rappelé dans le prompt, guide alors la réponse).
 def _json_reminder(schema):
     return ("\n\nRéponds uniquement avec un objet JSON valide, sans texte autour, conforme à ce schéma :\n"
             + json.dumps(schema, ensure_ascii=False))
 
 
-_albert_format = {"mode": "json_schema"}
+_openai_format = {"mode": "json_schema"}
 _http = None
 
 
-def _albert_post(path, body):
+def _openai_post(path, body):
     global _http
     if _http is None:
-        _http = httpx.Client(base_url=ALBERT_BASE_URL, timeout=60.0)
-    key = os.environ.get("ALBERT_API_KEY")
+        _http = httpx.Client(base_url=OPENAI_BASE_URL, timeout=60.0)
+    key = os.environ.get("OPENAI_API_KEY")
     if not key:
-        log.error("Aucune clé Albert configurée (ALBERT_API_KEY).")
+        log.error("Aucune clé configurée (OPENAI_API_KEY).")
         raise LLMUnavailable("auth")
     headers = {"Authorization": f"Bearer {key}"}
     try:
@@ -371,7 +375,7 @@ def _albert_post(path, body):
             return _http.get(path, headers=headers)
         return _http.post(path, headers=headers, json=body)
     except httpx.HTTPError as e:
-        log.error("Connexion à Albert API impossible : %s", e)
+        log.error("Connexion au fournisseur OpenAI impossible : %s", e)
         raise LLMUnavailable("connection") from e
 
 
@@ -382,48 +386,48 @@ def _response_format(mode, schema):
     return {"type": "json_object"}
 
 
-def _call_albert(system_text, user_text, schema):
+def _call_openai(system_text, user_text, schema):
     body = {
-        "model": ALBERT_MODEL,
+        "model": OPENAI_MODEL,
         "messages": [
             {"role": "system", "content": system_text + _json_reminder(schema)},
             {"role": "user", "content": user_text},
         ],
         "max_tokens": 4000,
         "temperature": 0.2,
-        "response_format": _response_format(_albert_format["mode"], schema),
+        "response_format": _response_format(_openai_format["mode"], schema),
     }
-    resp = _albert_post("/chat/completions", body)
-    if resp.status_code in (400, 422) and _albert_format["mode"] == "json_schema":
-        log.warning("Albert refuse la sortie par schéma (%s) : mode objet JSON.", resp.text[:300])
-        _albert_format["mode"] = "json_object"
+    resp = _openai_post("/chat/completions", body)
+    if resp.status_code in (400, 422) and _openai_format["mode"] == "json_schema":
+        log.warning("Le fournisseur refuse la sortie par schéma (%s) : mode objet JSON.", resp.text[:300])
+        _openai_format["mode"] = "json_object"
         body["response_format"] = _response_format("json_object", schema)
-        resp = _albert_post("/chat/completions", body)
+        resp = _openai_post("/chat/completions", body)
 
     if resp.status_code in (401, 403):
-        log.error("Clé Albert refusée : %s", resp.text[:300])
+        log.error("Clé refusée : %s", resp.text[:300])
         raise LLMUnavailable("auth")
     if resp.status_code == 429:
-        log.warning("Limite de débit Albert atteinte : %s", resp.text[:300])
+        log.warning("Limite de débit atteinte : %s", resp.text[:300])
         raise LLMUnavailable("rate_limit")
     if resp.status_code != 200:
-        log.error("Erreur Albert API %s : %s", resp.status_code, resp.text[:500])
+        log.error("Erreur API %s : %s", resp.status_code, resp.text[:500])
         raise LLMUnavailable("api_error")
 
     try:
         choice = resp.json()["choices"][0]
         text = choice["message"]["content"] or ""
     except (ValueError, KeyError, IndexError, TypeError) as e:
-        log.error("Réponse Albert inattendue : %r", resp.text[:500])
+        log.error("Réponse inattendue : %r", resp.text[:500])
         raise LLMUnavailable("bad_json") from e
     if choice.get("finish_reason") == "length":
         raise LLMUnavailable("max_tokens")
     return text
 
 
-def albert_models():
-    """Identifiants des modèles Albert de génération de texte."""
-    resp = _albert_post("/models", None)
+def openai_models():
+    """Identifiants des modèles de génération de texte disponibles chez ce fournisseur."""
+    resp = _openai_post("/models", None)
     resp.raise_for_status()
     return [m["id"] for m in resp.json().get("data", []) if m.get("type", "text-generation") == "text-generation"]
 
@@ -478,9 +482,9 @@ def _sanitize(question, data):
 
 
 if __name__ == "__main__":
-    # Liste des modèles Albert, pour choisir ALBERT_MODEL.
+    # Liste des modèles du fournisseur compatible OpenAI, pour choisir OPENAI_MODEL.
     if sys.argv[1:] == ["models"]:
-        for model_id in albert_models():
+        for model_id in openai_models():
             print(model_id)
     else:
         print("Usage : python llm.py models")
