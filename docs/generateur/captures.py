@@ -38,20 +38,11 @@ def page(b, w=1280, h=900, voix=False):
 
 
 def start(pg):
+    """Accueil → « Avant de commencer » → première question."""
     pg.click("#btn-start")
-    pg.wait_for_timeout(1200)
-
-
-def menu(pg, etape, qid):
-    """Ouvre une question par le menu latéral (sur mobile, le menu est d'abord déplié)."""
-    if pg.is_visible("[aria-controls='menu-questions']"):
-        pg.click("[aria-controls='menu-questions']")
-        pg.wait_for_timeout(400)
-    if pg.get_attribute(f"#menu-btn-{etape}", "aria-expanded") != "true":
-        pg.click(f"#menu-btn-{etape}")
-        pg.wait_for_timeout(500)
-    pg.click(f"#menu-etape-{etape} a[data-qid={qid}]")
-    pg.wait_for_timeout(700)
+    pg.wait_for_timeout(900)
+    pg.click("#btn-commencer")
+    pg.wait_for_timeout(1000)
 
 
 def suivante(pg):
@@ -59,27 +50,42 @@ def suivante(pg):
     pg.wait_for_timeout(500)
 
 
+def etape_suivante(pg):
+    pg.click("#btn-etape-suiv")
+    pg.wait_for_timeout(700)
+
+
+def aller(pg, qid):
+    """Avance avec « Question suivante » jusqu'à la question `qid`."""
+    for _ in range(30):
+        if pg.is_visible(f"#q-{qid}"):
+            return
+        suivante(pg)
+    raise RuntimeError(f"question {qid} introuvable")
+
+
 def net(pg):
     pg.mouse.move(1, 1)
     pg.wait_for_timeout(300)
 
 
-def colonne(pg):
-    """Colonne de droite de l'écran des questions."""
-    return pg.locator("#espace .fr-col-md-8")
-
-
 with sync_playwright() as p:
     b = p.chromium.launch(channel="chrome", headless=True)
 
-    # Accueil, réglages, reprise
+    # Accueil, réglages, « Avant de commencer », reprise
     ctx, pg = page(b)
     pg.screenshot(path=D / "01_accueil.png", full_page=True)
     pg.click("#btn-reglages")
     pg.wait_for_timeout(800)
     pg.locator("#modal-reglages .fr-modal__body").screenshot(path=D / "02_reglages.png")
     pg.keyboard.press("Escape")
-    start(pg)
+    pg.wait_for_timeout(400)
+    pg.click("#btn-start")
+    pg.wait_for_timeout(900)
+    net(pg)
+    pg.screenshot(path=D / "04_avant.png", full_page=True)
+    pg.click("#btn-commencer")
+    pg.wait_for_timeout(1000)
     pg.check("#concerne__moi", force=True)
     suivante(pg)
     pg.goto(URL)
@@ -87,40 +93,53 @@ with sync_playwright() as p:
     pg.locator("#accueil > div").first.screenshot(path=D / "03_reprise.png")
     ctx.close()
 
-    # Écran des questions (ordinateur) : quelques réponses, menu à jour
+    # Écran des questions (ordinateur)
     ctx, pg = page(b)
     start(pg)
     pg.check("#concerne__moi", force=True)
     suivante(pg)
-    pg.check("#vit_avec__seul", force=True)
-    suivante(pg)
-    suivante(pg)  # « Où vivez-vous ? » passée sans réponse : signalée dans le menu
-    net(pg)
-    pg.screenshot(path=D / "04_questions.png", full_page=True)
-    # Infobulle (version simplifiée de la question)
-    pg.click("#titre-accidents button")
-    pg.wait_for_timeout(400)
-    r = pg.locator("#q-accidents").bounding_box()  # l'infobulle s'affiche au-dessus du titre
-    pg.screenshot(path=D / "05_infobulle.png", clip={"x": r["x"] - 8, "y": r["y"] - 70, "width": r["width"] + 16, "height": 200})
-    pg.keyboard.press("Escape")
     # Champ de précision sous « Autre »
-    menu(pg, 0, "vit_avec")
     pg.check("#vit_avec__autre", force=True)
     pg.fill("#field-vit_avec_autre", "Avec mon frère")
     pg.dispatch_event("#field-vit_avec_autre", "change")
     net(pg)
     pg.locator("#q-vit_avec").screenshot(path=D / "06_precision.png")
-    # Date en trois champs, avec une erreur
-    menu(pg, 1, "revenus_12mois")
-    pg.check("#revenus_12mois__ij", force=True)
     suivante(pg)
+    # Question de suivi, dans la même carte : « Propriétaire ou locataire » sous « Où vivez-vous ? »
+    pg.check("#lieu_vie__logement_independant", force=True)
+    pg.wait_for_timeout(400)
+    net(pg)
+    pg.locator("#q-lieu_vie").screenshot(path=D / "07_suivi.png")
+    aller(pg, "accidents")
+    # Infobulle (version simplifiée de la question)
+    pg.click("#titre-accidents button")
+    pg.wait_for_timeout(400)
+    # Cadre : l'infobulle (au-dessus ou au-dessous du titre) et le début de la question.
+    t = pg.locator("#infobulle-accidents").bounding_box()
+    q = pg.locator("#q-accidents").bounding_box()
+    y0 = min(t["y"], q["y"]) - 16
+    y1 = max(t["y"] + t["height"], q["y"] + 140) + 16
+    pg.screenshot(path=D / "08_infobulle.png", clip={"x": q["x"] - 8, "y": y0, "width": q["width"] + 16, "height": y1 - y0})
+    pg.keyboard.press("Escape")
+    # Étape suivante, avec des questions restées sans réponse : bandeau orange
+    etape_suivante(pg)
+    net(pg)
+    pg.evaluate("scrollTo(0, 0)")
+    pg.screenshot(path=D / "05_questions.png", full_page=True)
+    # Date en trois champs, avec une erreur (question de suivi des indemnités journalières)
+    aller(pg, "revenus_12mois")
+    pg.check("#revenus_12mois__ij", force=True)
+    pg.wait_for_timeout(400)
     pg.fill("#ij_du__jour", "15")
     pg.fill("#ij_du__annee", "2024")
-    pg.keyboard.press("Tab")
+    # Sans Tab : le focus irait sur l'infobulle de la question suivante, qui s'ouvrirait sur la capture.
+    pg.dispatch_event("#ij_du__annee", "change")
+    pg.evaluate("document.activeElement.blur()")
     net(pg)
-    pg.locator("#q-ij_du").screenshot(path=D / "07_date.png")
+    pg.locator("#q-ij_du").screenshot(path=D / "09_date.png")
     # Frais : un bloc par frais
-    menu(pg, 2, "frais")
+    etape_suivante(pg)
+    aller(pg, "frais")
     pg.fill("#frais__0__frais", "Protections")
     pg.fill("#frais__0__frequence", "Chaque mois")
     pg.fill("#frais__0__montant_total", "45")
@@ -129,47 +148,41 @@ with sync_playwright() as p:
     pg.keyboard.type("Séances de psychologue")
     pg.keyboard.press("Tab")
     net(pg)
-    pg.locator("#q-frais").screenshot(path=D / "08_frais.png")
+    pg.locator("#q-frais").screenshot(path=D / "10_frais.png")
     ctx.close()
 
     # Écoute (micro simulé) : bouton « J'ai fini de parler », transcription, lecteur de la voix
     ctx, pg = page(b, voix=True)
-    start(pg)
+    pg.evaluate("window.__dire = 'on commence'")
+    pg.click("#btn-start")
+    pg.wait_for_selector("#espace:not([hidden])", timeout=30000)
     pg.wait_for_function("document.getElementById('btn-mic').textContent.includes('fini')", timeout=60000)
-    pg.evaluate("window.__dire = 'je vis avec ma fille et mon gendre'")
+    pg.evaluate("window.__dire = 'c’est pour moi'")
     pg.wait_for_function("!document.getElementById('transcription').hidden", timeout=30000)
     net(pg)
-    colonne(pg).screenshot(path=D / "09_ecoute.png")
+    pg.locator("#espace").screenshot(path=D / "11_ecoute.png")
     ctx.close()
 
-    # Mobile : écran des questions et menu déplié
+    # Mobile : écran des questions
     ctx, pg = page(b, 390, 844)
     start(pg)
     pg.check("#concerne__moi", force=True)
     suivante(pg)
     net(pg)
     pg.evaluate("scrollTo(0, 0)")
-    pg.screenshot(path=D / "10_mobile_questions.png")
-    pg.click("[aria-controls='menu-questions']")
-    pg.wait_for_timeout(600)
-    pg.locator("nav.fr-sidemenu").screenshot(path=D / "11_mobile_menu.png")
+    pg.screenshot(path=D / "12_mobile_questions.png")
     ctx.close()
 
-    # Fin : questions restantes, puis effacement (fenêtre de confirmation et message)
+    # Fin : « Imprimer ou enregistrer » avec des questions restantes, puis effacement
     ctx, pg = page(b)
     start(pg)
     pg.check("#concerne__moi", force=True)
     suivante(pg)
-    pg.click("#menu-liste a[data-recap]")
-    pg.wait_for_timeout(800)
+    for _ in range(5):
+        etape_suivante(pg)
+    pg.wait_for_selector("#recap:not([hidden])")
     net(pg)
-    pg.screenshot(path=D / "12_fin.png")
-    pg.click("#btn-reprendre")
-    pg.wait_for_timeout(800)
-    net(pg)
-    pg.locator("nav.fr-sidemenu").screenshot(path=D / "13_restantes.png")
-    pg.click("#menu-liste a[data-recap]")
-    pg.wait_for_timeout(800)
+    pg.screenshot(path=D / "13_fin.png")
     pg.click("#btn-effacer")
     pg.wait_for_timeout(800)
     net(pg)
