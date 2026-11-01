@@ -1,7 +1,7 @@
 // Panneau de débogage de la mémoire (développement seulement : MEMOIRE_DEBUG=1 sur le serveur).
 // Montre la mémoire évoluer pendant la conversation : faits (avec leur citation et leur statut),
 // transcription et appels à l'IA. Absent de la page sans le drapeau. Composants DSFR tels quels :
-// grille, accordéons, tableau, badges, lien de téléchargement.
+// grille (avec gouttières), accordéons, badges, lien de téléchargement.
 
 const STATUS = {
   proposed: ['Proposé', 'fr-badge--info'],
@@ -38,20 +38,24 @@ function accordion(id, title, open = false) {
  * `calls` : journal des appels à l'IA (main.js) ; `onCall(fn)` : abonnement à ses ajouts.
  */
 export function mountDebugPanel({ memory, calls, schema, onCall, column }) {
-  const short = (qid) => (qid ? schema.questions.find((q) => q.id === qid)?.short || qid : '—');
+  const short = (qid) => (qid ? schema.questions.find((q) => q.id === qid)?.short || qid : 'aucune (pour plus tard)');
   const facts = accordion('debug-faits', 'Faits', true);
   const transcript = accordion('debug-transcription', 'Transcription');
   const log = accordion('debug-appels', 'Journal');
   const download = el('a', { class: 'fr-link fr-link--download', id: 'debug-telecharger', download: 'memoire-mdph.json' },
     'Télécharger la mémoire ', el('span', { class: 'fr-link__detail', text: 'JSON' }));
 
+  // Colonne à part, encadrée (fond gris) : elle se distingue des questions. Les gouttières de la grille
+  // DSFR, ajoutées à la ligne seulement avec le panneau, l'écartent de la colonne des questions.
   const panel = el('aside', {
-    id: 'debug-memoire', class: 'fr-col-12 fr-col-lg-4 fr-mt-4w fr-mt-lg-0 fr-pl-lg-3w', 'aria-labelledby': 'debug-memoire-titre',
+    id: 'debug-memoire', class: 'fr-col-12 fr-col-lg-4 fr-mt-3w fr-mt-md-0', 'aria-labelledby': 'debug-memoire-titre',
   },
-  el('h2', { class: 'fr-h5', id: 'debug-memoire-titre', text: 'Mémoire (débogage)' }),
-  el('p', { class: 'fr-text--sm', text: 'Visible en développement seulement. Données fictives uniquement.' }),
-  el('div', { class: 'fr-accordions-group' }, facts.section, transcript.section, log.section),
-  el('p', { class: 'fr-mt-2w' }, download));
+  el('div', { class: 'fr-background-alt--grey fr-p-2w' },
+    el('h2', { class: 'fr-h5 fr-mb-1w', id: 'debug-memoire-titre', text: 'Mémoire (débogage)' }),
+    el('p', { class: 'fr-text--sm fr-mb-2w', text: 'Visible en développement seulement. Données fictives uniquement. Journal : appels à l’IA et fins de réponse.' }),
+    el('div', { class: 'fr-accordions-group' }, facts.section, transcript.section, log.section),
+    el('p', { class: 'fr-mt-2w fr-mb-0' }, download)));
+  column.parentElement.classList.add('fr-grid-row--gutters');
   column.after(panel);
 
   function renderFacts() {
@@ -61,23 +65,16 @@ export function mountDebugPanel({ memory, calls, schema, onCall, column }) {
       facts.body.replaceChildren(el('p', { class: 'fr-text--sm', text: 'Aucun fait pour l’instant.' }));
       return;
     }
-    const rows = list.map((f) => {
+    // Liste plutôt que tableau : la colonne est étroite, chaque fait s'y lit de haut en bas.
+    const items = list.map((f, i) => {
       const [label, variant] = STATUS[f.status] || [f.status, ''];
-      return el('tr', {},
-        el('td', {},
-          el('p', { class: `fr-badge fr-badge--sm ${variant} fr-mb-1v`.trim(), text: label }),
-          el('br'), f.fact || '—', el('br'),
-          el('span', { class: 'fr-text--xs', text: `« ${f.quote || ''} » · ${f.id} · ${time(f.t)}${f.supersededBy ? ` · remplacé par ${f.supersededBy}` : ''}` })),
-        el('td', {}, short(f.qid)));
+      return el('li', { class: i ? 'fr-mt-2w' : null },
+        el('p', { class: `fr-badge fr-badge--sm ${variant} fr-mb-1v`.trim(), text: label }),
+        el('p', { class: 'fr-text--sm fr-text--bold fr-mb-0', text: f.fact || '—' }),
+        el('p', { class: 'fr-text--xs fr-mb-0', text: `Question : ${short(f.qid)}` }),
+        el('p', { class: 'fr-text--xs fr-mb-0', text: `« ${f.quote || ''} » · ${f.id} · ${time(f.t)}${f.supersededBy ? ` · remplacé par ${f.supersededBy}` : ''}` }));
     });
-    facts.body.replaceChildren(el('div', { class: 'fr-table fr-table--sm fr-table--no-scroll fr-table--multiline fr-mb-0' },
-      el('div', { class: 'fr-table__wrapper' }, el('div', { class: 'fr-table__container' }, el('div', { class: 'fr-table__content' },
-        el('table', {},
-          el('caption', { class: 'fr-sr-only', text: 'Faits en mémoire, du plus récent au plus ancien' }),
-          el('thead', {}, el('tr', {},
-            el('th', { scope: 'col', text: 'Fait, citation et statut' }),
-            el('th', { scope: 'col', text: 'Question' }))),
-          el('tbody', {}, rows)))))));
+    facts.body.replaceChildren(el('ul', { class: 'fr-raw-list', 'aria-label': 'Faits en mémoire, du plus récent au plus ancien' }, items));
   }
 
   function renderTranscript() {
@@ -90,7 +87,7 @@ export function mountDebugPanel({ memory, calls, schema, onCall, column }) {
   }
 
   function renderCalls() {
-    log.setTitle(`Journal : IA et fins de réponse (${calls.length})`);
+    log.setTitle(`Journal (${calls.length})`);
     log.body.replaceChildren(calls.length
       ? el('ul', { class: 'fr-text--sm' }, calls.map((c) => (c.kind === 'fin de réponse'
         ? el('li', {}, el('span', { class: 'fr-text--bold', text: `${time(c.at)} fin de réponse – ${c.ms} ms de silence` }), ` – ${c.text}`)

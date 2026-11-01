@@ -95,6 +95,12 @@ The foundation; useful on its own.
 - **Pending conflicts at the end of the form:** they are only asked before a next question; there is none on the final screen.
 - **Live display:** no screen-reader announcement of the provisional value while listening, because the microphone would pick it up. The answer is confirmed out loud at the end of the turn.
 
+## Iteration 2 (after first user tests)
+- [x] Deduction: "je vis chez mes parents" fills "Où vivez-vous ?" (hébergé) and "Chez qui ?" (parents). The prompt allows near-certain deductions, and the server deduces a question's condition from `when`. The questions in one card are confirmed together.
+- [x] Live updates about every 2 s while talking (minimum 4 new words, one call at a time), instead of waiting for final segments. Quotes are checked against the whole turn, since a sentence can be cut between two sends.
+- [x] Voice commands in the model's intents: `next`, `next_step`/`prev_step`, `list`, `finish` (plus the existing ones), including when combined with an answer.
+- [x] Debug panel: framed column, grid gutters, list instead of table (no overflow).
+
 ## Critical files
 - `static/js/memory.js` (new), [main.js](static/js/main.js), [voice.js](static/js/voice.js), `static/index.html`, `static/donnees-personnelles.html`
 - [llm.py](llm.py) (`EXTRACT_*`, `extract`, `facts` in `RESPONSE_SCHEMA`, reuse of `_sanitize`/`_system_text`/`_complete`), [app.py](app.py) (`/api/extract`, `/api/status`)

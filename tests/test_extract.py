@@ -178,3 +178,27 @@ def test_condition_multi_et_texte():
     # Une précision « Autre situation » implique l'option « Autre » de la question à choix multiple.
     kept, _ = sanitize([fact(qid="vit_avec_autre", text="Avec mon oncle", quote="je vis tout seul")], current="concerne")
     assert [(k["qid"], k["selected"]) for k in kept] == [("vit_avec_autre", []), ("vit_avec", ["autre"])]
+
+
+def test_extract_citation_a_cheval_sur_deux_morceaux(monkeypatch):
+    # « je ne peux plus | monter les escaliers » : coupé entre deux envois, la citation est cherchée dans tout le tour.
+    def fake(system_text, user_text, schema, cache=False):
+        return {"current": {}, "facts": [fact(qid="besoins_deplacement", selected=["domicile"],
+                                              quote="je ne peux plus monter les escaliers")]}
+
+    monkeypatch.setattr(llm, "_complete", fake)
+    out = llm.extract(FORM, app.QUESTIONS["vit_avec"], {
+        "segment": "monter les escaliers", "turn_text": "je vis seul et je ne peux plus monter les escaliers", "memoire": []})
+    assert [f["qid"] for f in out["facts"]] == ["besoins_deplacement"]
+
+
+def test_interpret_citation_avant_le_texte_a_extraire(client, monkeypatch):
+    def fake(system_text, user_text, schema, cache=False):
+        return {"intent": "answer", "selected": ["moi"], "complete": True, "message": "",
+                "facts": [fact(qid="besoins_deplacement", selected=["domicile"], quote="je ne peux plus monter les escaliers sans aide")]}
+
+    monkeypatch.setattr(llm, "_complete", fake)
+    body = client.post("/api/interpret", json={
+        "question_id": "concerne", "utterance": "pour moi, je ne peux plus monter les escaliers sans aide donc voilà",
+        "pending": "aide donc voilà"}).get_json()
+    assert [f["qid"] for f in body["facts"]] == ["besoins_deplacement"]

@@ -10,7 +10,7 @@ const COMMANDS = [
   ['repeat', /^(tu peux |vous pouvez |peux tu |pouvez vous )?(repete[rz]?|repetez|redis|redire|encore une fois|pardon|quoi|comment)( la question)?( s il (te|vous) plait)?$/],
   ['back', /^(question )?(precedente?|retour( en arriere)?|revenir( en arriere)?|reviens( en arriere)?)$/],
   ['back', /^(je veux |je voudrais |on peut |peut on |on va )?(revenir|retourner|aller|repasser) (a |sur )?(la )?question precedente$/],
-  ['skip', /^(passer|passe|suivante?|question suivante|je passe|je prefere ne pas repondre|on passe)$/],
+  ['skip', /^(passer|passe|suivante?|question suivante|je passe|je prefere ne pas repondre|on passe|on passe a la suite|passons a la suite|passons a la question suivante|on continue|continuons)$/],
   ['help', /^(je (ne )?comprends? pas|j ai pas compris|je n ai pas compris|c est quoi|ca veut dire quoi|explique[rz]?( moi)?|aide|au secours)$/],
   ['help', /^(tu peux |vous pouvez |peux tu |pouvez vous )?(reformule[rz]?|dis le autrement|dites le autrement|plus simplement|plus simple)( la question)?( s il (te|vous) plait)?$/],
   ['pause', /^(pause|stop|arrete[rz]?|on arrete|je fais une pause)$/],
