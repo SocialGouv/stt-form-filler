@@ -140,6 +140,17 @@ def option_question(question, option):
 MAX_FACTS_MEMOIRE = 200
 
 
+def history_from(body):
+    """Échange déjà eu sur la question en cours : [{role, text}] nettoyé."""
+    history = body.get("history")
+    if not isinstance(history, list):
+        return []
+    return [
+        {"role": str(h.get("role", ""))[:20], "text": str(h.get("text", ""))[:MAX_UTTERANCE]}
+        for h in history if isinstance(h, dict)
+    ]
+
+
 def memoire_from(body):
     """Mémoire envoyée par le navigateur (faits déjà notés) : [{id, qid, text}] nettoyée."""
     items = body.get("memoire")
@@ -172,16 +183,9 @@ def interpret():
             return jsonify({"error": "option_inconnue"}), 400
         question = option_question(question, option)
 
-    history = body.get("history") or []
-    if not isinstance(history, list):
-        history = []
-    history = [
-        {"role": str(h.get("role", ""))[:20], "text": str(h.get("text", ""))[:MAX_UTTERANCE]}
-        for h in history if isinstance(h, dict)
-    ]
     context = {
         "utterance": utterance[:MAX_UTTERANCE],
-        "history": history,
+        "history": history_from(body),
         "draft": str(body.get("draft") or "")[:MAX_UTTERANCE * 2],
         "current_value": body.get("current_value"),
         "concerne": body.get("concerne"),
@@ -209,6 +213,7 @@ def extract():
     context = {
         "segment": segment[:MAX_UTTERANCE],
         "turn_text": str(body.get("turn_text") or "").strip()[:MAX_UTTERANCE],
+        "history": history_from(body),
         "memoire": memoire_from(body),
         "concerne": body.get("concerne"),
     }

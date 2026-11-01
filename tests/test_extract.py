@@ -202,3 +202,19 @@ def test_interpret_citation_avant_le_texte_a_extraire(client, monkeypatch):
         "question_id": "concerne", "utterance": "pour moi, je ne peux plus monter les escaliers sans aide donc voilà",
         "pending": "aide donc voilà"}).get_json()
     assert [f["qid"] for f in body["facts"]] == ["besoins_deplacement"]
+
+
+def test_api_extract_transmet_l_echange_sur_la_question(client, monkeypatch):
+    # Texte libre : le brouillon provisoire reprend les réponses aux relances précédentes.
+    seen = {}
+
+    def fake(system_text, user_text, schema, cache=False):
+        seen["user_text"] = user_text
+        return {"current": {"text": "Je suis fatiguée. Je voudrais travailler à mi-temps."}, "facts": []}
+
+    monkeypatch.setattr(llm, "_complete", fake)
+    res = client.post("/api/extract", json={
+        "question_id": "autres_renseignements", "segment": "je voudrais travailler à mi-temps",
+        "history": [{"role": "usager", "text": "je suis fatiguée"}, {"role": "assistant", "text": "Et vos projets ?"}, "bad"]})
+    assert res.get_json()["current"]["text"] == "Je suis fatiguée. Je voudrais travailler à mi-temps."
+    assert "echanges_sur_cette_question" in seen["user_text"] and "je suis fatiguée" in seen["user_text"]
