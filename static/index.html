@@ -116,7 +116,7 @@
 
       <div class="fr-alert fr-alert--info fr-mt-3w">
         <h2 class="fr-alert__title">Vos données</h2>
-        <p>Vos réponses sont gardées dans votre navigateur, et effacées quand vous fermez l'onglet. Pour comprendre vos phrases, elles sont envoyées à un programme informatique qui comprend le langage (une intelligence artificielle). <a href="/donnees-personnelles">En savoir plus sur vos données</a></p>
+        <p>Vos réponses et ce que vous avez dit sont gardés seulement dans ce navigateur, sur cet appareil, pendant 7 jours après votre dernière réponse. Vous pouvez les effacer à tout moment. Sur un ordinateur partagé, effacez-les à la fin. Pour comprendre vos phrases, elles sont envoyées à un programme informatique qui comprend le langage (une intelligence artificielle). <a href="/donnees-personnelles">En savoir plus sur vos données</a></p>
       </div>
     </section>
 
@@ -212,6 +212,8 @@
 
           <div class="fr-background-alt--blue-france fr-p-3w">
             <p class="fr-text--bold fr-mb-1w" id="question-numero"></p>
+            <!-- Réponse pré-remplie d'après ce que l'usager a dit plus tôt, en attente de sa confirmation. -->
+            <p class="fr-badge fr-badge--info fr-mb-1w" id="prerempli" hidden>Pré-rempli d’après ce que vous avez dit</p>
             <!-- Questions obligatoires : indiqué juste avant les champs (RGAA 11.10), en gris discret (16 px minimum). -->
             <p class="fr-text-mention--grey fr-mb-2w">Sauf mention contraire « (optionnel) » dans l'intitulé, toutes les questions sont obligatoires.</p>
             <form id="form-b" novalidate></form>
@@ -222,6 +224,8 @@
               </ul>
               <p id="etat-micro" class="fr-text--bold fr-mb-2w" role="status" aria-live="polite"></p>
               <p class="fr-mb-2w" id="transcription" hidden><span class="fr-text--bold">Vous avez dit :</span> « <span id="transcription-texte"></span> »</p>
+              <!-- Mémoire : informations données pour d'autres questions, qui seront pré-remplies. -->
+              <p class="fr-text--sm fr-mb-0" id="memoire-notes" hidden></p>
             </div>
           </div>
           <!-- Hors du fond bleu : au survol, le bouton secondaire DSFR garde un contraste suffisant. -->
@@ -256,6 +260,12 @@
           <p>Vous pouvez imprimer le formulaire tel quel, ou y répondre maintenant.</p>
           <button type="button" class="fr-btn fr-btn--secondary fr-icon-arrow-right-line fr-btn--icon-right fr-mt-2w" id="btn-reprendre">Répondre aux questions restantes</button>
         </div>
+        <!-- Réponses pré-remplies d'après la conversation que l'usager n'a pas confirmées. -->
+        <div id="recap-prerempli" class="fr-alert fr-alert--info fr-mb-3w" hidden>
+          <h2 class="fr-alert__title" id="recap-prerempli-titre"></h2>
+          <p>Elles viennent de ce que vous avez dit pendant l'échange. Vérifiez-les avant d'imprimer, avec « Modifier mes réponses » :</p>
+          <ul id="recap-prerempli-liste"></ul>
+        </div>
 
         <ul class="fr-btns-group fr-btns-group--icon-left">
           <li><button type="button" class="fr-btn fr-btn--lg fr-icon-printer-line" id="btn-imprimer">Imprimer le formulaire<span class="fr-sr-only"> (s'ouvre dans un nouvel onglet)</span></button></li>
@@ -263,11 +273,19 @@
           <li><button type="button" class="fr-btn fr-btn--lg fr-btn--tertiary fr-icon-edit-line" id="btn-modifier">Modifier mes réponses</button></li>
         </ul>
 
+        <!-- Transcription de l'échange : fichier texte créé dans le navigateur (href posé par main.js). -->
+        <p hidden>
+          <a class="fr-link fr-link--download" id="lien-transcription" download="transcription-echange-mdph.txt">
+            Télécharger la transcription de l'échange
+            <span class="fr-link__detail" id="lien-transcription-detail">TXT</span>
+          </a>
+        </p>
+
         <!-- Action destructrice : à l'écart des actions principales (séparateur, section à part, en bas
              de page), avec ses conséquences écrites, et confirmation dans une fenêtre (modale DSFR). -->
         <hr class="fr-hr fr-mt-8w">
         <h2 class="fr-h5">Effacer vos réponses</h2>
-        <p>Toutes vos réponses seront définitivement supprimées. Pensez à enregistrer votre formulaire avant de continuer.</p>
+        <p>Toutes vos réponses et la transcription de l'échange seront définitivement supprimées de cet appareil. Pensez à enregistrer votre formulaire avant de continuer.</p>
         <button type="button" class="fr-btn fr-btn--tertiary fr-icon-delete-line fr-btn--icon-left" id="btn-effacer" aria-controls="modal-effacer" data-fr-opened="false">Effacer toutes mes réponses</button>
       </div>
     </section>
@@ -325,7 +343,7 @@
             </div>
             <div class="fr-modal__content">
               <h1 id="modal-effacer-titre" class="fr-modal__title"><span class="fr-icon-warning-line fr-icon--lg fr-mr-1w" aria-hidden="true"></span>Effacer toutes vos réponses ?</h1>
-              <p>Toutes vos réponses seront définitivement supprimées. Pensez à enregistrer votre formulaire avant de continuer.</p>
+              <p>Toutes vos réponses et la transcription de l'échange seront définitivement supprimées de cet appareil. Pensez à enregistrer votre formulaire avant de continuer.</p>
             </div>
             <div class="fr-modal__footer">
               <ul class="fr-btns-group fr-btns-group--right fr-btns-group--inline-reverse fr-btns-group--inline-lg">

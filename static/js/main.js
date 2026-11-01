@@ -3,6 +3,7 @@ import {
   isAnswered, formatValue, dateError, NONE,
 } from './form.js';
 import { Speaker, Listener, canListen, canSpeak, OPTION_BREAK } from './voice.js';
+import { Memory } from './memory.js';
 import {
   detectCommand, detectBegin, detectStepCommand, detectListRequest, detectDone, interpretLocally, setGlossary, detectNavigation, findQuestions, parseNumber,
 } from './local-nlu.js';
@@ -10,6 +11,8 @@ import {
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = 'mdph-partie-b-v1';
 const PREFS_KEY = 'mdph-preferences-v1';
+// Réponses, mémoire et transcription gardées sur l'appareil : effacées 7 jours après la dernière activité.
+const STORE_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
 
 const S = {
   schema: null,
@@ -26,7 +29,14 @@ const S = {
   pendingNav: false, // l'assistant attend le numéro de la question à revoir
   keepTop: false,    // arrivée sur un écran : la page reste en haut jusqu'à la première action
   lastSaved: null,   // { qid, extra: [ids de précision] } : dernière réponse enregistrée
+  prefilled: {},     // { qid: { facts: [ids], confirmed } } : réponses pré-remplies depuis la mémoire
+  confirming: null,  // question pré-remplie dont l'assistant attend la confirmation (oui / non)
+  conflicts: [],     // [{ qid, factId }] : information qui contredit une réponse déjà donnée
+  resolving: null,   // { qid, factId, next } : l'assistant demande s'il faut changer cette réponse
 };
+
+// Mémoire de la conversation (transcription et faits), gardée avec les réponses.
+const memory = new Memory();
 
 const prefs = { speak: true, handsfree: true, rate: 0.9 };
 // Fixés (non réglables) : voix naturelle féminine, 4 secondes de silence avant la fin de l'écoute.
@@ -38,10 +48,19 @@ speaker.onFallback = () => announce('La voix naturelle ne répond pas. La voix d
 const listener = new Listener({
   onInterim: (t) => showTranscription(t),
   onState: (st) => renderMicState(st),
+  onSegment: (t) => {
+    if (!S.turn || S.turn.ended) return;
+    S.turn.segments.push(t);
+    S.turn.lastSegmentAt = performance.now();
+    quickEnd(S.turn);
+  },
+  onResume: () => extractPending(),
 });
 
 // ---------- Stockage ----------
-// Réponses (données de santé) : sessionStorage, effacé à la fermeture de l'onglet.
+// Réponses (données de santé), mémoire et transcription : localStorage, sur l'appareil seulement,
+// pour reprendre après une coupure ou la fermeture de l'onglet. Effacées après STORE_MAX_AGE_MS sans
+// activité, ou quand l'usager choisit d'effacer ses réponses. Rien n'est gardé sur le serveur.
 // Préférences d'affichage et de voix : localStorage.
 
 function safe(fn, fallback) {
@@ -49,14 +68,35 @@ function safe(fn, fallback) {
 }
 
 function save() {
-  safe(() => sessionStorage.setItem(STORE_KEY, JSON.stringify({
+  safe(() => localStorage.setItem(STORE_KEY, JSON.stringify({
+    savedAt: Date.now(),
     answers: S.answers, perQ: S.perQ, currentId: S.currentId, finished: S.finished, returnTo: S.returnTo,
+    prefilled: S.prefilled, conflicts: S.conflicts, memory,
   })));
 }
 
+/** Données enregistrées, si elles ne sont pas trop anciennes. */
+function loadStored() {
+  // Anciennes versions : réponses dans sessionStorage. On les reprend une fois.
+  const old = safe(() => sessionStorage.getItem(STORE_KEY), null);
+  if (old) {
+    safe(() => sessionStorage.removeItem(STORE_KEY));
+    if (!safe(() => localStorage.getItem(STORE_KEY), null)) safe(() => localStorage.setItem(STORE_KEY, old));
+  }
+  const data = safe(() => JSON.parse(localStorage.getItem(STORE_KEY)), null);
+  if (!data || typeof data !== 'object') return null;
+  // Sans date (reprise depuis sessionStorage) : considéré comme récent.
+  if (data.savedAt && Date.now() - data.savedAt > STORE_MAX_AGE_MS) {
+    safe(() => localStorage.removeItem(STORE_KEY));
+    return null;
+  }
+  return data;
+}
+
 function restore() {
-  const data = safe(() => JSON.parse(sessionStorage.getItem(STORE_KEY)), null);
+  const data = loadStored();
   if (!data) return false;
+  memory.load(data.memory);
   // Réponses aux questions retirées du formulaire (par exemple l'ancien nom / prénom) : effacées.
   const known = (id) => S.schema.questions.some((q) => q.id === id);
   const keep = (obj) => Object.fromEntries(Object.entries(obj || {}).filter(([id]) => known(id)));
@@ -64,6 +104,8 @@ function restore() {
     answers: keep(data.answers), perQ: keep(data.perQ),
     currentId: known(data.currentId) ? data.currentId : null, finished: !!data.finished,
     returnTo: known(data.returnTo) ? data.returnTo : null,
+    prefilled: keep(data.prefilled),
+    conflicts: (Array.isArray(data.conflicts) ? data.conflicts : []).filter((c) => known(c?.qid)),
   });
   save();
   // Parcours commencé : au moins une réponse, ou une question déjà posée.
@@ -305,9 +347,14 @@ function questionSpeech(q, simple) {
 /** Texte affiché ou mémorisé : sans les marqueurs réservés à la voix. */
 const displayText = (text) => text.split(OPTION_BREAK).join('').replace(/\s{2,}/g, ' ').trim();
 
-/** Message de l'assistant : voix coupée, il est annoncé au lecteur d'écran. */
+/**
+ * Message de l'usager ou de l'assistant : ajouté à la transcription (mémoire). Message de l'assistant,
+ * voix coupée : il est annoncé au lecteur d'écran.
+ */
 function logMessage(who, text) {
   text = displayText(text);
+  memory.addSegment({ role: who === 'usager' ? 'usager' : 'assistant', qid: S.currentId, text });
+  save();
   if (who === 'assistant') {
     if (!prefs.speak) announcePolite(text);
   }
@@ -431,6 +478,8 @@ function renderCard(q, simple = false, currentOption = null, { focus = false } =
   const title = top === q || isFollowUp(q.id) ? $(`titre-${q.id}`) : $(`field-${q.id}`);
   renderStepper(i);
   renderSaved(q.id);
+  const pre = S.prefilled[q.id];
+  $('prerempli').hidden = !(pre && !pre.confirmed && isAnswered(q, S.answers[q.id]));
   const end = S.stepEnd?.qid === q.id;
   $('fin-etape').hidden = !end;
   if (end) {
@@ -478,6 +527,19 @@ async function say(text) {
 
 async function ask(qid, { intro = '', focus = false } = {}) {
   const q = question(qid);
+  S.confirming = null;
+  S.resolving = null;
+  // Contradiction avec une réponse déjà donnée : vérifiée avant la question suivante.
+  const vis = computeVisibility(S.schema, S.answers);
+  S.conflicts = S.conflicts.filter((c) => vis[c.qid] && isAnswered(question(c.qid), S.answers[c.qid]));
+  const conflict = S.conflicts.find((c) => c.qid !== qid);
+  if (conflict) {
+    S.conflicts = S.conflicts.filter((c) => c !== conflict);
+    return askConflict(conflict, qid, { intro });
+  }
+  // Déjà dit plus tôt dans la conversation : réponse pré-remplie, l'usager la confirme d'un mot.
+  const prefill = !isAnswered(q, S.answers[qid]) && prefillFromMemory(q);
+  if (prefill) return askPrefilled(q, prefill, { intro, focus });
   if (q.oneByOne) {
     const st = stateOf(qid);
     // On arrive d'une autre question : on repart de la première proposition.
@@ -489,7 +551,9 @@ async function ask(qid, { intro = '', focus = false } = {}) {
     return askOption(q, st.step, { intro: [intro, start].filter(Boolean).join(' ') });
   }
   if (qid !== S.currentId) { showTranscription(''); S.more = null; }
+  if (S.notes?.qid !== qid) S.notes = { qid, count: 0 };
   S.currentId = qid;
+  renderMemoryNotes();
   save();
   renderCard(q, false, null, { focus });
   // Question de suivi : on reste sur la même question (même numéro, même carte), on le dit.
@@ -504,6 +568,90 @@ async function ask(qid, { intro = '', focus = false } = {}) {
   logMessage('assistant', text);
   await say(text);
   if (S.currentId === qid) maybeListen();
+}
+
+// ---------- Réponses pré-remplies depuis la mémoire (« le dire une fois ») ----------
+
+/** Valeur qu'on peut tirer des faits en mémoire pour `q` (le plus récent l'emporte), ou null. */
+function prefillFromMemory(q) {
+  if (q.type === 'table') return null;
+  const facts = memory.activeFactsFor(q.id);
+  if (!facts.length) return null;
+  const last = facts.at(-1);
+  let value;
+  switch (q.type) {
+    case 'single': value = last.selected?.[0]; break;
+    case 'multi': {
+      const ids = new Set(facts.flatMap((f) => f.selected || []));
+      value = ids.size ? q.options.map((o) => o.id).filter((id) => ids.has(id))
+        : (q.allowNone && facts.some((f) => f.none_apply) ? [NONE] : undefined);
+      break;
+    }
+    case 'yesno': value = last.yes_no || undefined; break;
+    case 'date': value = last.date && !dateError(q, last.date) ? last.date : undefined; break;
+    case 'number': value = last.number ?? undefined; break;
+    default: value = last.text || undefined;
+  }
+  // Seuls les faits qui ont servi à la valeur seront confirmés ou refusés.
+  const used = q.type === 'multi' ? facts : [last];
+  return value === undefined || !isAnswered(q, value) ? null : { value, facts: used };
+}
+
+/**
+ * Question déjà renseignée par la conversation : la réponse est cochée, l'assistant rappelle ce que
+ * l'usager a dit et demande une simple confirmation. « Non » : la question est posée en entier.
+ */
+async function askPrefilled(q, { value, facts }, { intro = '', focus = false } = {}) {
+  if (q.id !== S.currentId) { showTranscription(''); S.more = null; }
+  if (S.notes?.qid !== q.id) S.notes = { qid: q.id, count: 0 };
+  if (q.oneByOne) stateOf(q.id).step = null;
+  S.currentId = q.id;
+  S.prefilled[q.id] = { facts: facts.map((f) => f.id), confirmed: false };
+  S.confirming = q.id;
+  setAnswer(q.id, value);
+  // Question à réponse libre : ce que l'usager ajoute s'ajoute à la réponse pré-remplie.
+  if (q.openAnswer) S.more = q.id;
+  renderMemoryNotes();
+  save();
+  renderCard(q, false, null, { focus });
+  if (isFollowUp(q.id) && !intro) intro = 'Encore une question sur ce point.';
+  const said = [...new Set(facts.map((f) => f.quote).filter(Boolean))];
+  const quotes = said.map((t) => `« ${t} »`).join(' et ');
+  // Ce qui a été dit est aussi affiché (« Vous avez dit : … »), pas seulement lu à voix haute.
+  if (said.length) showTranscription(said.join(' … '));
+  const text = [intro, endSentence(questionText(q)),
+    quotes ? `Vous m’avez déjà dit : ${quotes}.` : 'Vous me l’avez déjà dit.',
+    `J’ai donc noté : ${formatValue(q, value)}. Est-ce bien cela ? Répondez oui ou non.`].filter(Boolean).join(' ');
+  logMessage('assistant', text);
+  await say(text);
+  if (S.currentId === q.id) maybeListen();
+}
+
+/** « Oui » : la réponse pré-remplie est gardée et les faits qui l'ont donnée sont confirmés. */
+async function confirmPrefill(q, ack = 'Merci, c’est confirmé.') {
+  settlePrefill(q.id, true);
+  noteSaved(q.id);
+  logMessage('assistant', ack);
+  await say(ack);
+  return nextAfterRecap(q, ack);
+}
+
+/** « Non » : la réponse pré-remplie est retirée et la question est posée en entier. */
+function rejectPrefill(q) {
+  settlePrefill(q.id, false);
+  setAnswer(q.id, null);
+  return ask(q.id, { intro: 'D’accord, je retire cette réponse.' });
+}
+
+/** Fin de la confirmation : faits confirmés ou refusés, la question n'est plus « à vérifier ». */
+function settlePrefill(qid, confirmed) {
+  const p = S.prefilled[qid];
+  if (S.confirming === qid) S.confirming = null;
+  if (!p) return;
+  for (const id of p.facts) memory.setStatus(id, confirmed ? 'confirmed' : 'rejected');
+  if (confirmed) p.confirmed = true;
+  else delete S.prefilled[qid];
+  save();
 }
 
 function maybeListen() {
@@ -538,6 +686,7 @@ function hideMicErrors() {
 
 async function startListening() {
   speaker.stop();
+  const turn = startTurn(S.currentId);
   let text;
   try {
     text = await listener.listen();
@@ -548,12 +697,235 @@ async function startListening() {
     if (blocked) S.mode = 'keyboard';
     return;
   }
+  finally {
+    turn.ended = true;
+    // Panneau de débogage : silence attendu entre le dernier mot et la fin de l'écoute.
+    if (turn.lastSegmentAt) logCall('fin de réponse', turn.lastSegmentAt, null, turn.quick ? 'oui / non : fin rapide' : 'silence habituel');
+  }
   if (text === null) return; // écoute annulée
   if (!text) { renderMicState('nothing'); return; }
-  await handleUtterance(text);
+  await handleUtterance(text, turn);
 }
 
-async function callInterpret(q, text) {
+// ---------- Remplissage pendant que l'usager parle ----------
+// Le navigateur signale chaque morceau de phrase définitif. Quand l'usager reprend la parole (sa
+// réponse continue), les morceaux pas encore lus partent à /api/extract : la question en cours se
+// coche à l'écran et les informations pour d'autres questions vont dans la mémoire. Un seul appel
+// à la fois ; les morceaux arrivés entre-temps partent avec l'appel suivant. Le dernier morceau
+// part avec /api/interpret, à la fin de la réponse : une réponse courte ne coûte aucun appel de plus.
+
+let turnSeq = 0;
+
+function startTurn(qid) {
+  S.turn = { id: ++turnSeq, qid, segments: [], extracted: 0, inFlight: false, ended: false, live: null };
+  return S.turn;
+}
+
+/** Questions remplies en direct : pas les tableaux ni les propositions lues une par une. */
+const liveExtraction = (q) => Boolean(q) && !q.oneByOne && q.type !== 'table' && llmAvailable();
+
+async function extractPending() {
+  const turn = S.turn;
+  if (!turn || turn.ended || turn.inFlight || turn.extracted >= turn.segments.length) return;
+  const q = question(turn.qid);
+  if (!liveExtraction(q) || S.pendingNav) return;
+  const from = turn.extracted;
+  const segment = turn.segments.slice(from).join(' ');
+  turn.extracted = turn.segments.length;
+  // Commande (« question suivante », « revenir à… ») : rien à extraire.
+  if (detectCommand(segment) || detectStepCommand(segment) || detectNavigation(segment)) return;
+  turn.inFlight = true;
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question_id: q.id,
+        segment,
+        turn_text: turn.segments.join(' '),
+        memoire: memory.compact(),
+        concerne: S.answers.concerne ?? null,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const r = await res.json();
+    logCall('extract', t0, r, segment);
+    // Les faits viennent de morceaux définitifs : gardés même si la réponse s'est terminée entre-temps.
+    rememberFacts(r.facts);
+    // La valeur provisoire, elle, n'est affichée que tant que l'usager parle encore.
+    if (!turn.ended && S.turn === turn && S.currentId === q.id) showLive(q, r.current, turn);
+  } catch (err) {
+    logCall('extract', t0, null, segment, err);
+    // Échec : ces morceaux partiront avec /api/interpret à la fin de la réponse.
+    if (!turn.ended) turn.extracted = Math.min(turn.extracted, from);
+  } finally {
+    turn.inFlight = false;
+  }
+}
+
+/**
+ * Réponse provisoire de la question en cours, affichée dans le formulaire sans être enregistrée :
+ * /api/interpret, à la fin de la réponse, décide de la valeur gardée. Pas d'annonce au lecteur
+ * d'écran pendant l'écoute : le micro l'entendrait ; la réponse est confirmée à la fin.
+ */
+function showLive(q, r, turn) {
+  let value = valueFromResult(q, r);
+  if (value === undefined || (q.type === 'date' && dateError(q, value))) return;
+  // Question à réponse libre déjà remplie : ce qui est dit s'ajoute (comme à la fin de la réponse).
+  if (q.openAnswer && S.more === q.id && Array.isArray(value)) {
+    const before = (Array.isArray(S.answers[q.id]) ? S.answers[q.id] : []).filter((id) => id !== NONE);
+    value = q.options.map((o) => o.id).filter((id) => before.includes(id) || value.includes(id));
+  }
+  writeValue($('form-b'), q, value);
+  turn.live = value;
+}
+
+/** Fin de la réponse : le formulaire affiche de nouveau les réponses enregistrées. */
+function clearLive(turn, q) {
+  if (turn?.live == null) return;
+  turn.live = null;
+  writeValue($('form-b'), q, S.answers[q.id] ?? null);
+}
+
+/** Faits renvoyés par le serveur (déjà vérifiés) : ajoutés à la mémoire, puis enregistrés. */
+function rememberFacts(facts) {
+  const added = memory.addFacts(facts);
+  if (!added.length) return;
+  for (const f of added) checkConflict(f);
+  if (S.notes?.qid === S.currentId) S.notes.count += added.filter((f) => f.qid !== S.currentId).length;
+  renderMemoryNotes();
+  save();
+}
+
+/**
+ * Nouvelle information sur une question déjà répondue. Si elle contredit la réponse :
+ * - réponse pré-remplie pas encore confirmée : remplacée tout de suite (c'est encore une proposition) ;
+ * - réponse donnée ou confirmée par l'usager : jamais changée sans lui ; l'assistant lui demandera,
+ *   avant la question suivante (voir ask), s'il faut la changer.
+ * Les réponses écrites (texte libre) ne sont pas comparées : une autre formulation n'est pas une contradiction.
+ */
+function checkConflict(fact) {
+  const q = fact.qid && question(fact.qid);
+  if (!q || fact.qid === S.currentId || ['text', 'longtext', 'table'].includes(q.type)) return;
+  const current = S.answers[q.id];
+  if (!isAnswered(q, current)) return;
+  const value = valueOfFact(q, fact);
+  if (value === undefined || agrees(q, current, value)) return;
+  const pre = S.prefilled[q.id];
+  if (pre && !pre.confirmed) {
+    for (const old of memory.activeFactsFor(q.id)) if (old.id !== fact.id) memory.setStatus(old.id, 'superseded');
+    const next = prefillFromMemory(q);
+    if (next) { setAnswer(q.id, next.value); pre.facts = next.facts.map((f) => f.id); }
+    return;
+  }
+  S.conflicts = S.conflicts.filter((c) => c.qid !== q.id).concat({ qid: q.id, factId: fact.id });
+}
+
+/** Valeur d'un seul fait pour la question `q` (même lecture que le pré-remplissage). */
+function valueOfFact(q, fact) {
+  switch (q.type) {
+    case 'single': return fact.selected?.[0];
+    case 'multi': return fact.selected?.length ? fact.selected : (fact.none_apply ? [NONE] : undefined);
+    case 'yesno': return fact.yes_no || undefined;
+    case 'date': return fact.date || undefined;
+    case 'number': return fact.number ?? undefined;
+    default: return undefined;
+  }
+}
+
+/** La réponse donnée et l'information nouvelle disent-elles la même chose ? (choix multiple : incluse) */
+function agrees(q, current, value) {
+  if (q.type === 'multi') {
+    const have = Array.isArray(current) ? current : [];
+    return value.every((id) => have.includes(id)) && !(have.includes(NONE) && !value.includes(NONE));
+  }
+  return JSON.stringify(current) === JSON.stringify(value);
+}
+
+/**
+ * Avant de poser une question : s'il y a une contradiction en attente, l'assistant la signale d'abord
+ * (sur la question concernée, avec sa réponse affichée) et demande s'il faut changer la réponse.
+ */
+async function askConflict(c, next, { intro = '' } = {}) {
+  const q = question(c.qid);
+  const fact = memory.facts.find((f) => f.id === c.factId);
+  S.resolving = { ...c, next };
+  S.confirming = null;
+  if (q.id !== S.currentId) { S.more = null; }
+  S.currentId = q.id;
+  save();
+  renderCard(q);
+  if (fact?.quote) showTranscription(fact.quote);
+  const text = [intro, `Une vérification sur la question « ${q.short} ».`,
+    `Vous aviez répondu : ${formatValue(q, S.answers[q.id])}.`,
+    fact?.quote ? `Mais vous venez de dire : « ${fact.quote} ».` : '',
+    'Voulez-vous changer cette réponse ? Répondez oui ou non.'].filter(Boolean).join(' ');
+  logMessage('assistant', text);
+  await say(text);
+  if (S.currentId === q.id && S.resolving) maybeListen();
+}
+
+/**
+ * Réponse à la vérification. Oui : l'ancienne réponse est retirée et la question est reposée,
+ * pré-remplie avec la nouvelle information (l'usager la confirme ou la corrige), puis on reprend
+ * où on en était. Non : l'information nouvelle est écartée.
+ */
+function resolveConflict(change) {
+  const { qid, factId, next } = S.resolving;
+  S.resolving = null;
+  if (!change) {
+    memory.setStatus(factId, 'rejected');
+    save();
+    return ask(next, { intro: 'D’accord, je garde votre réponse.' });
+  }
+  for (const old of memory.activeFactsFor(qid)) if (old.id !== factId) memory.setStatus(old.id, 'superseded');
+  delete S.prefilled[qid];
+  setAnswer(qid, null);
+  if (!S.returnTo && next !== qid) S.returnTo = next;
+  save();
+  return ask(qid, { intro: 'D’accord.' });
+}
+
+/** Sous la question : combien d'informations ont été notées pour d'autres questions pendant celle-ci. */
+function renderMemoryNotes() {
+  const n = S.notes?.qid === S.currentId ? S.notes.count : 0;
+  $('memoire-notes').hidden = !n;
+  $('memoire-notes').textContent = n === 1
+    ? 'J’ai noté une information pour une autre question.'
+    : `J’ai noté ${n} informations pour d’autres questions.`;
+}
+
+/**
+ * Fin de réponse plus rapide quand on attend un oui ou un non (question oui / non, confirmation d'une
+ * réponse pré-remplie, vérification d'une contradiction) et que l'usager l'a clairement dit en peu de
+ * mots : 1,5 seconde de silence au lieu de 4. Détection locale, sans appel à l'IA.
+ */
+const QUICK_END_MS = 1500;
+function quickEnd(turn) {
+  const q = question(turn.qid);
+  const expectsYesNo = S.confirming === q.id || S.resolving?.qid === q.id || (q.type === 'yesno' && !q.oneByOne);
+  const said = turn.segments.join(' ');
+  if (!expectsYesNo || said.trim().split(/\s+/).length > 4) return;
+  const yn = interpretLocally({ id: q.id, type: 'yesno', label: q.label }, said, stateOf(q.id)).yes_no;
+  if (yn !== 'oui' && yn !== 'non') return;
+  turn.quick = true;
+  listener.shorten(QUICK_END_MS);
+}
+
+// Appels à l'IA (pour le panneau de débogage de la mémoire) : les 50 derniers, pas enregistrés.
+const calls = [];
+function logCall(kind, t0, r, text, err) {
+  calls.unshift({
+    kind, at: new Date().toISOString(), ms: Math.round(performance.now() - t0), text,
+    kept: r?.facts?.length ?? 0, rejected: r?.rejected || [], error: err ? String(err.message || err) : null,
+  });
+  calls.length = Math.min(calls.length, 50);
+  onCallLogged?.();
+}
+let onCallLogged = null;
+
+async function callInterpret(q, text, pending = '') {
   const st = stateOf(q.id);
   const res = await fetch('/api/interpret', {
     method: 'POST',
@@ -566,6 +938,8 @@ async function callInterpret(q, text) {
       draft: st.draft,
       current_value: S.answers[q.id] ?? null,
       concerne: S.answers.concerne ?? null,
+      memoire: memory.compact(),
+      pending,
     }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -593,7 +967,7 @@ function llmFailed() {
   setDegraded(true);
 }
 
-async function handleUtterance(text) {
+async function handleUtterance(text, turn = null) {
   if (S.busy || !S.currentId) return;
   S.keepTop = false; // l'usager a répondu : le formulaire peut suivre la question en cours
   const q = question(S.currentId);
@@ -601,6 +975,42 @@ async function handleUtterance(text) {
   showTranscription(text);
   logMessage('usager', text);
   st.history.push({ role: 'usager', text });
+  // Vérification d'une contradiction : oui (changer) ou non (garder).
+  if (S.resolving?.qid === q.id && !S.pendingNav && !detectStepCommand(text) && !detectNavigation(text)) {
+    clearLive(turn, q);
+    const yn = interpretLocally({ id: q.id, type: 'yesno', label: q.label }, text, st).yes_no;
+    if (yn === 'oui' || yn === 'non') return resolveConflict(yn === 'oui');
+    const again = 'Je n’ai pas compris. Voulez-vous changer cette réponse ? Répondez oui ou non.';
+    logMessage('assistant', again);
+    await say(again);
+    return maybeListen();
+  }
+
+  // Réponse pré-remplie à confirmer : « oui » la garde, « non » seul pose la question en entier.
+  // Vérifié avant les commandes : sur une question à réponse libre, « non » veut aussi dire « c'est
+  // tout ». Une phrase plus longue (« non, je vis en couple ») est une correction : l'IA l'interprète,
+  // avec la réponse pré-remplie comme réponse actuelle.
+  if (S.confirming === q.id && !S.pendingNav && !detectStepCommand(text) && !detectNavigation(text)) {
+    const yn = interpretLocally({ id: q.id, type: 'yesno', label: q.label }, text, st).yes_no;
+    const words = text.trim().split(/\s+/).length;
+    if (yn === 'oui' && words <= 6) {
+      clearLive(turn, q);
+      return confirmPrefill(q);
+    }
+    if ((yn === 'non' && words <= 3) || q.oneByOne) {
+      clearLive(turn, q);
+      return rejectPrefill(q);
+    }
+    if (q.openAnswer && detectDone(text)) {
+      clearLive(turn, q);
+      return confirmPrefill(q);
+    }
+  }
+  // Commande traitée sans l'IA : la réponse provisoire affichée pendant l'écoute est retirée tout de
+  // suite. Sinon, elle reste affichée jusqu'à la réponse de l'IA (pas de clignotement).
+  const local = S.pendingNav || detectStepCommand(text) || detectNavigation(text)
+    || (q.openAnswer && (detectListRequest(text) || (S.more === q.id && detectDone(text))));
+  if (local) clearLive(turn, q);
 
   // Retour à une question précise : « revenir à la question 5 », « … à la question sur le logement ».
   if (S.pendingNav) {
@@ -638,10 +1048,16 @@ async function handleUtterance(text) {
   } else if (llmAvailable()) {
     S.busy = true;
     renderMicState('thinking');
+    // Morceaux pas encore passés par /api/extract : leurs informations sont extraites maintenant.
+    const pending = turn ? turn.segments.slice(turn.extracted).join(' ') : '';
+    const t0 = performance.now();
     try {
-      r = await callInterpret(q, text);
+      r = await callInterpret(q, text, pending);
+      logCall('interpret', t0, r, text);
+      rememberFacts(r.facts);
       setDegraded(false);
-    } catch {
+    } catch (err) {
+      logCall('interpret', t0, null, text, err);
       llmFailed();
       r = interpretLocally(lq, text, st);
     } finally {
@@ -650,6 +1066,16 @@ async function handleUtterance(text) {
     }
   } else {
     r = interpretLocally(lq, text, st);
+  }
+  clearLive(turn, q);
+  // Correction d'une réponse pré-remplie : la nouvelle valeur confirme les faits si elle est la même,
+  // sinon ils sont refusés (l'usager a corrigé).
+  if (S.confirming === q.id) {
+    const value = valueFromResult(q, r);
+    const same = JSON.stringify(value) === JSON.stringify(S.answers[q.id]);
+    if (value !== undefined) settlePrefill(q.id, same);
+    // Corrigée : la réponse pré-remplie ne s'ajoute pas à la nouvelle (question à réponse libre).
+    if (value !== undefined && !same) { setAnswer(q.id, null); S.more = null; }
   }
   await (q.oneByOne ? applyOptionResult(q, r) : applyResult(q, r));
 }
@@ -1068,8 +1494,9 @@ function goPrev({ focus = false } = {}) {
 
 /** Efface toutes les réponses (session et formulaire affiché) pour repartir de la première question. */
 function resetAnswers() {
-  Object.assign(S, { answers: {}, perQ: {}, currentId: null, finished: false, review: false });
-  safe(() => sessionStorage.removeItem(STORE_KEY));
+  Object.assign(S, { answers: {}, perQ: {}, currentId: null, finished: false, review: false, prefilled: {}, confirming: null, conflicts: [], resolving: null });
+  memory.clear();
+  safe(() => localStorage.removeItem(STORE_KEY));
   for (const q of S.schema.questions) writeValue($('form-b'), q, null);
   refreshVisibility();
 }
@@ -1322,6 +1749,34 @@ function renderRecap() {
   $('recap-complet').hidden = Boolean(missing);
   $('recap-manquantes-titre').textContent = missing === 1
     ? 'Il reste une question sans réponse' : `Il reste ${missing} questions sans réponse`;
+  renderTranscriptLink();
+  // Réponses pré-remplies depuis la mémoire, jamais confirmées (l'usager est passé à la suite).
+  const vis = computeVisibility(S.schema, S.answers);
+  const toCheck = Object.entries(S.prefilled)
+    .filter(([id, p]) => !p.confirmed && vis[id] && isAnswered(question(id), S.answers[id]))
+    .map(([id]) => question(id));
+  $('recap-prerempli').hidden = !toCheck.length;
+  $('recap-prerempli-titre').textContent = toCheck.length === 1
+    ? 'Une réponse pré-remplie n’a pas été confirmée' : `${toCheck.length} réponses pré-remplies n’ont pas été confirmées`;
+  $('recap-prerempli-liste').replaceChildren(...toCheck.map((q) => Object.assign(document.createElement('li'), {
+    textContent: `${q.short} : ${formatValue(q, S.answers[q.id])}`,
+  })));
+}
+
+/**
+ * Lien de téléchargement de la transcription de tout l'échange (fichier texte créé dans le
+ * navigateur : rien n'est envoyé au serveur). Masqué s'il n'y a encore rien à transcrire.
+ */
+function renderTranscriptLink() {
+  const link = $('lien-transcription');
+  const empty = !memory.transcript.length;
+  link.closest('p').hidden = empty;
+  if (link.href.startsWith('blob:')) URL.revokeObjectURL(link.href);
+  if (empty) { link.removeAttribute('href'); return; }
+  const blob = new Blob([memory.toTxt(S.schema)], { type: 'text/plain;charset=utf-8' });
+  link.href = URL.createObjectURL(blob);
+  const kb = Math.max(1, Math.round(blob.size / 1024));
+  $('lien-transcription-detail').textContent = `TXT – ${kb.toLocaleString('fr-FR')} ko`;
 }
 
 /**
@@ -1344,38 +1799,11 @@ function openCerfaPdf(download) {
     form.append(input);
   }
   document.body.append(form);
-  // Enregistrement du PDF dans le même onglet : on reste sur le site, pas d'alerte de fermeture.
-  if (download) allowInternalNavigation();
   form.submit();
   form.remove();
   announce(download
     ? 'Le formulaire Cerfa rempli est en cours d’enregistrement.'
     : 'Le formulaire Cerfa rempli s’ouvre dans un nouvel onglet. Vous pourrez l’imprimer depuis cet onglet.');
-}
-
-// ---------- Sécurité à la fermeture de l'onglet ----------
-
-/**
- * Les réponses sont gardées le temps de l'onglet (sessionStorage) : le fermer les efface. Dès qu'il y a
- * une réponse, le navigateur demande confirmation avant de fermer l'onglet ou de quitter le site.
- * C'est l'alerte du navigateur : les navigateurs n'autorisent aucune fenêtre du site à ce moment.
- * Les navigations dans le site (logo, pages légales, enregistrement du PDF) gardent les réponses :
- * elles ne déclenchent pas l'alerte.
- */
-let internalUntil = 0;
-const allowInternalNavigation = () => { internalUntil = Date.now() + 2000; };
-
-function guardTabClosing() {
-  window.addEventListener('beforeunload', (e) => {
-    if (Date.now() < internalUntil || !Object.keys(S.answers).length) return;
-    e.preventDefault();
-    e.returnValue = ''; // anciens navigateurs
-  });
-  // Lien vers une autre page du site, dans le même onglet : les réponses sont gardées.
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('a[href]');
-    if (a && a.origin === location.origin && (!a.target || a.target === '_self')) allowInternalNavigation();
-  }, true);
 }
 
 // ---------- Événements ----------
@@ -1536,6 +1964,9 @@ async function init() {
       const valid = !dateError(q, value);
       if (valid && (isAnswered(q, value) || (Array.isArray(value) && q.type === 'table'))) S.answers[qid] = value;
       else delete S.answers[qid];
+      // Réponse pré-remplie modifiée à la main : c'est l'usager qui l'a donnée.
+      if (S.prefilled[qid]) settlePrefill(qid, isAnswered(q, value));
+      if (qid === S.currentId) $('prerempli').hidden = true;
       refreshVisibility();
       save();
     },
@@ -1548,7 +1979,6 @@ async function init() {
   if (!canListen) $('alerte-micro').hidden = false;
   loadPrefs();
   bind();
-  guardTabClosing();
 
   fetch('/api/status').then((r) => r.json()).then((s) => {
     if (!s.llm) {
@@ -1557,6 +1987,12 @@ async function init() {
     }
     S.ttsVoices = s.tts || []; // sans voix naturelle sur le serveur : voix du navigateur
     applyPrefs();
+    // Développement (MEMOIRE_DEBUG=1) : panneau qui montre la mémoire évoluer. Chargé seulement dans ce cas.
+    if (s.debug_memoire) {
+      import('./debug-memory.js').then((m) => m.mountDebugPanel({
+        memory, calls, schema: S.schema, column: $('colonne-principale'), onCall: (fn) => { onCallLogged = fn; },
+      }));
+    }
   }).catch(llmFailed);
 }
 
