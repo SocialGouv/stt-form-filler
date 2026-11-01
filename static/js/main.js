@@ -528,6 +528,7 @@ async function say(text) {
 async function ask(qid, { intro = '', focus = false } = {}) {
   const q = question(qid);
   S.confirming = null;
+  S.confirmGroup = null;
   S.resolving = null;
   // Contradiction avec une réponse déjà donnée : vérifiée avant la question suivante.
   const vis = computeVisibility(S.schema, S.answers);
@@ -609,6 +610,11 @@ async function askPrefilled(q, { value, facts }, { intro = '', focus = false } =
   S.prefilled[q.id] = { facts: facts.map((f) => f.id), confirmed: false };
   S.confirming = q.id;
   setAnswer(q.id, value);
+  // Questions de la même carte qui s'affichent avec cette réponse et sont aussi connues (« Où vivez-vous ? :
+  // hébergé » puis « Chez qui ? : vos parents ») : pré-remplies avec elle, une seule confirmation.
+  const group = prefillCard(q);
+  S.confirmGroup = group.map((g) => g.q.id);
+  facts = [...facts, ...group.flatMap((g) => g.facts)];
   // Question à réponse libre : ce que l'usager ajoute s'ajoute à la réponse pré-remplie.
   if (q.openAnswer) S.more = q.id;
   renderMemoryNotes();
@@ -621,23 +627,54 @@ async function askPrefilled(q, { value, facts }, { intro = '', focus = false } =
   if (said.length) showTranscription(said.join(' … '));
   const text = [intro, endSentence(questionText(q)),
     quotes ? `Vous m’avez déjà dit : ${quotes}.` : 'Vous me l’avez déjà dit.',
-    `J’ai donc noté : ${formatValue(q, value)}. Est-ce bien cela ? Répondez oui ou non.`].filter(Boolean).join(' ');
+    `J’ai donc noté : ${[formatValue(q, value), ...group.map((g) => `${g.q.label.replace(/\s*\?$/, '')} : ${formatValue(g.q, g.value)}`)].join(' ; ')}.`,
+    'Est-ce bien cela ? Répondez oui ou non.'].filter(Boolean).join(' ');
   logMessage('assistant', text);
   await say(text);
   if (S.currentId === q.id) maybeListen();
 }
 
+/** Pré-remplit les questions suivantes de la carte de `q` (visibles, sans réponse, connues par la mémoire). */
+function prefillCard(q) {
+  const group = [];
+  const order = S.schema.questions;
+  for (const f of order.slice(order.indexOf(q) + 1)) {
+    if (rootOf(f.id) !== rootOf(q.id)) continue;
+    if (!computeVisibility(S.schema, S.answers)[f.id] || isAnswered(f, S.answers[f.id])) continue;
+    const pre = prefillFromMemory(f);
+    if (!pre) continue;
+    S.prefilled[f.id] = { facts: pre.facts.map((x) => x.id), confirmed: false };
+    setAnswer(f.id, pre.value);
+    group.push({ q: f, ...pre });
+  }
+  return group;
+}
+
+/** Fin de la confirmation pour les questions pré-remplies avec `q` (même carte). */
+function settleGroup(confirmed, { clear = false, keepFacts = false } = {}) {
+  const ids = S.confirmGroup || [];
+  S.confirmGroup = null;
+  for (const id of [...ids].reverse()) {
+    if (keepFacts) delete S.prefilled[id];
+    else settlePrefill(id, confirmed);
+    if (clear) setAnswer(id, null);
+  }
+  return ids;
+}
+
 /** « Oui » : la réponse pré-remplie est gardée et les faits qui l'ont donnée sont confirmés. */
 async function confirmPrefill(q, ack = 'Merci, c’est confirmé.') {
   settlePrefill(q.id, true);
-  noteSaved(q.id);
+  const group = settleGroup(true);
+  noteSaved(q.id, group);
   logMessage('assistant', ack);
   await say(ack);
-  return nextAfterRecap(q, ack);
+  return nextAfterRecap(q, ack, group);
 }
 
 /** « Non » : la réponse pré-remplie est retirée et la question est posée en entier. */
 function rejectPrefill(q) {
+  settleGroup(false, { clear: true });
   settlePrefill(q.id, false);
   setAnswer(q.id, null);
   return ask(q.id, { intro: 'D’accord, je retire cette réponse.' });
@@ -1073,7 +1110,11 @@ async function handleUtterance(text, turn = null) {
   if (S.confirming === q.id) {
     const value = valueFromResult(q, r);
     const same = JSON.stringify(value) === JSON.stringify(S.answers[q.id]);
-    if (value !== undefined) settlePrefill(q.id, same);
+    if (value !== undefined) {
+      settlePrefill(q.id, same);
+      // Les questions pré-remplies avec elle restent à confirmer quand elles seront posées.
+      settleGroup(same, same ? {} : { clear: true, keepFacts: true });
+    }
     // Corrigée : la réponse pré-remplie ne s'ajoute pas à la nouvelle (question à réponse libre).
     if (value !== undefined && !same) { setAnswer(q.id, null); S.more = null; }
   }

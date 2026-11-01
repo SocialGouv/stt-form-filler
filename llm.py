@@ -131,7 +131,7 @@ Questions de type "longtext" (rédaction assistée) :
 
 Mémoire : "memoire" liste les informations que l'usager a déjà données ailleurs dans la conversation ({id, qid : question visée ou null, text}). Sers-t'en pour comprendre sa réponse (« comme je vous l'ai dit »), sans lui faire répéter ce qu'il a déjà dit.
 
-Champ "facts" : l'usager donne souvent, en répondant, des informations qui répondent à D'AUTRES questions du formulaire (« je vis seul depuis que j'ai l'AAH »). Liste-les dans "facts", seulement celles qui viennent du texte "texte_a_extraire" (ou, à défaut, de "derniere_phrase_usager"), un fait par question. Pour chaque fait : "qid" = identifiant de la question visée (null si l'information ne correspond à aucune question mais sera utile plus tard) ; "fact" = une phrase courte qui résume l'information (« Vit seul », « Perçoit l'AAH depuis mars 2021 ») ; la valeur selon le type de la question visée, dans "selected", "none_apply", "yes_no", "date" (JJ/MM/AAAA), "number" ou "text", les autres champs vides ou null ; "quote" = le plus court extrait EXACT des mots de l'usager qui justifie cette information (quelques mots, recopiés tels quels, pas toute la phrase) ; "replaces" = l'"id" du fait de "memoire" que cette information corrige, sinon null. N'invente rien et ne déduis pas ce qui n'est pas dit. Pas de fait sur la question en cours (sa réponse va dans les autres champs). Pas de fait déjà en mémoire avec la même valeur. Sinon, "facts" vide.
+Champ "facts" : l'usager donne souvent, en répondant, des informations qui répondent à D'AUTRES questions du formulaire (« je vis seul depuis que j'ai l'AAH »). Liste-les dans "facts", seulement celles qui viennent du texte "texte_a_extraire" (ou, à défaut, de "derniere_phrase_usager"), un fait par question. Pour chaque fait : "qid" = identifiant de la question visée (null si l'information ne correspond à aucune question mais sera utile plus tard) ; "fact" = une phrase courte qui résume l'information (« Vit seul », « Perçoit l'AAH depuis mars 2021 ») ; la valeur selon le type de la question visée, dans "selected" (pour une question à choix, TOUJOURS l'"id" de l'option : sans lui, le fait est ignoré), "none_apply", "yes_no", "date" (JJ/MM/AAAA), "number" ou "text", les autres champs vides ou null ; "quote" = le plus court extrait EXACT des mots de l'usager qui justifie cette information (quelques mots, recopiés tels quels, pas toute la phrase) ; "replaces" = l'"id" du fait de "memoire" que cette information corrige, sinon null. Une même phrase répond souvent à plusieurs questions : passe en revue TOUTES les questions du schéma, y compris celles qui ne s'affichent que sous condition ("when"). Ajoute aussi ce qui se DÉDUIT avec quasi-certitude de ce qui est dit : par exemple, « je vis chez mes parents » répond aussi à « Où vivez-vous ? » (hébergé au domicile de quelqu'un) et à « Chez qui vivez-vous ? » (de vos parents) ; la citation est alors les mots qui permettent la déduction (« chez mes parents »). Pas de supposition seulement probable : « je vis avec mes parents » ne dit pas à qui est le logement. N'invente rien. Pas de fait sur la question en cours (sa réponse va dans les autres champs). Pas de fait déjà en mémoire avec la même valeur. Sinon, "facts" vide.
 
 Ne donne jamais de conseil médical ou juridique, et ne promets jamais qu'un droit sera accordé : c'est la MDPH qui décide. Si la personne exprime une détresse ou un danger immédiat, réponds avec empathie et indique le 15 (urgences médicales), le 112 ou le 3114 (prévention du suicide), puis propose de continuer plus tard.
 
@@ -371,7 +371,7 @@ def sanitize_facts(form, current_qid, facts, source_text, known_ids):
         fact_text = str(raw.get("fact") or "").strip()[:200]
 
         def refuse(reason):
-            rejected.append({"reason": reason, "qid": qid, "quote": quote})
+            rejected.append({"reason": reason, "qid": qid, "quote": quote, "fact": fact_text})
 
         if qid is not None and qid not in questions:
             refuse("question_inconnue")
@@ -408,7 +408,38 @@ def sanitize_facts(form, current_qid, facts, source_text, known_ids):
             refuse("trop_de_faits")
             continue
         kept.append(fact)
-    return kept, rejected
+    return kept + _implied_by_conditions(questions, kept, current_qid), rejected
+
+
+def _implied_by_conditions(questions, facts, current_qid):
+    """Déductions sûres tirées du formulaire lui-même : une question qui ne s'affiche que sous condition
+    ("when") n'a de réponse que si cette condition est remplie. « Chez qui vivez-vous ? : vos parents »
+    implique donc « Où vivez-vous ? : hébergé au domicile de quelqu'un ». Même citation que le fait
+    d'origine ; rien n'est ajouté pour la question en cours ni pour une question déjà renseignée."""
+    have = {f["qid"] for f in facts if f["qid"]}
+    implied = []
+    pending = list(facts)
+    while pending:
+        f = pending.pop()
+        when = (questions.get(f["qid"]) or {}).get("when") or {}
+        parent = questions.get(when.get("q"))
+        if not parent or parent["id"] in have or parent["id"] == current_qid:
+            continue
+        value = {"selected": [], "none_apply": False, "yes_no": None, "date": None, "number": None, "text": None}
+        option = when.get("eq") if parent["type"] == "single" else when.get("includes") if parent["type"] == "multi" else None
+        if option and any(o["id"] == option for o in parent.get("options", [])):
+            value["selected"] = [option]
+            label = next(o["label"] for o in parent["options"] if o["id"] == option)
+        elif parent["type"] == "yesno" and when.get("eq") in ("oui", "non"):
+            value["yes_no"] = label = when["eq"]
+        else:
+            continue
+        fact = {"qid": parent["id"], "fact": f"{parent.get('short') or parent['label']} : {label}",
+                "quote": f["quote"], "replaces": None, **value}
+        have.add(parent["id"])
+        implied.append(fact)
+        pending.append(fact)  # condition de la condition (questions imbriquées)
+    return implied
 
 
 NAVIGATION_PROMPT = """Tu aides un site vocal qui fait remplir la partie B du formulaire de demande à la MDPH.

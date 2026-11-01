@@ -156,3 +156,25 @@ def test_status_drapeau_debug(client, monkeypatch):
     assert client.get("/api/status").get_json()["debug_memoire"] is True
     monkeypatch.delenv("MEMOIRE_DEBUG")
     assert client.get("/api/status").get_json()["debug_memoire"] is False
+
+
+def test_condition_deduite_d_une_question_conditionnelle():
+    # « Chez qui vivez-vous ? » n'existe que si « Où vivez-vous ? » = hébergé.
+    kept, _ = sanitize([fact(qid="hebergeur", fact="Chez ses parents", selected=["parents"], quote="je vis tout seul")],
+                       current="vit_avec")
+    assert [(f["qid"], f["selected"]) for f in kept] == [("hebergeur", ["parents"]), ("lieu_vie", ["heberge"])]
+    assert kept[1]["quote"] == "je vis tout seul"
+
+
+def test_condition_pas_deduite_pour_la_question_en_cours_ni_en_double():
+    f = fact(qid="hebergeur", selected=["parents"], quote="je vis tout seul")
+    assert [k["qid"] for k in sanitize([f], current="lieu_vie")[0]] == ["hebergeur"]
+    other = fact(qid="lieu_vie", selected=["autre"], quote="je vis tout seul")
+    kept, _ = sanitize([f, other], current="vit_avec")
+    assert [(k["qid"], k["selected"]) for k in kept] == [("hebergeur", ["parents"]), ("lieu_vie", ["autre"])]
+
+
+def test_condition_multi_et_texte():
+    # Une précision « Autre situation » implique l'option « Autre » de la question à choix multiple.
+    kept, _ = sanitize([fact(qid="vit_avec_autre", text="Avec mon oncle", quote="je vis tout seul")], current="concerne")
+    assert [(k["qid"], k["selected"]) for k in kept] == [("vit_avec_autre", []), ("vit_avec", ["autre"])]
