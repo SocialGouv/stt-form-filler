@@ -96,8 +96,6 @@ def status():
     return jsonify({
         "llm": llm.configured(), "provider": llm.PROVIDER, "model": llm.MODEL,
         "tts": tts.available_voices(),
-        # Panneau de débogage de la mémoire : en développement seulement (MEMOIRE_DEBUG=1).
-        "debug_memoire": os.environ.get("MEMOIRE_DEBUG", "").strip().lower() in ("1", "true", "oui"),
     })
 
 
@@ -137,25 +135,6 @@ def option_question(question, option):
     return vq
 
 
-MAX_FACTS_MEMOIRE = 200
-
-
-def memoire_from(body):
-    """Mémoire envoyée par le navigateur (faits déjà notés) : [{id, qid, text}] nettoyée."""
-    items = body.get("memoire")
-    if not isinstance(items, list):
-        return []
-    return [
-        {
-            "id": str(m.get("id") or "")[:20],
-            "qid": str(m["qid"]) if m.get("qid") in QUESTIONS else None,
-            "text": str(m.get("text") or "")[:300],
-        }
-        for m in items[-MAX_FACTS_MEMOIRE:]
-        if isinstance(m, dict) and m.get("id")
-    ]
-
-
 @app.post("/api/interpret")
 def interpret():
     body = request.get_json(silent=True) or {}
@@ -185,37 +164,12 @@ def interpret():
         "draft": str(body.get("draft") or "")[:MAX_UTTERANCE * 2],
         "current_value": body.get("current_value"),
         "concerne": body.get("concerne"),
-        "memoire": memoire_from(body),
-        "pending": str(body.get("pending") or "").strip()[:MAX_UTTERANCE],
     }
     try:
         result = llm.interpret(FORM, question, context)
     except llm.LLMUnavailable as e:
         return jsonify({"error": "llm_indisponible", "reason": str(e)}), 503
     return jsonify(result)
-
-
-@app.post("/api/extract")
-def extract():
-    """Pendant que l'usager parle : réponse provisoire à la question en cours et informations pour les
-    autres questions (mémoire). Rien n'est conservé : la mémoire vit dans le navigateur."""
-    body = request.get_json(silent=True) or {}
-    question = QUESTIONS.get(body.get("question_id"))
-    segment = str(body.get("segment") or "").strip()
-    if question is None:
-        return jsonify({"error": "question_inconnue"}), 400
-    if not segment:
-        return jsonify({"error": "segment_vide"}), 400
-    context = {
-        "segment": segment[:MAX_UTTERANCE],
-        "turn_text": str(body.get("turn_text") or "").strip()[:MAX_UTTERANCE],
-        "memoire": memoire_from(body),
-        "concerne": body.get("concerne"),
-    }
-    try:
-        return jsonify(llm.extract(FORM, question, context))
-    except llm.LLMUnavailable as e:
-        return jsonify({"error": "llm_indisponible", "reason": str(e)}), 503
 
 
 @app.post("/api/navigate")

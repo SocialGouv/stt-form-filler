@@ -10,7 +10,7 @@ Avant toute modification de l'interface (HTML, CSS ou JavaScript dans `static/`)
 
 ## Commandes
 
-Pas de linter. Tests (pytest, extraction et vérification des faits) : `.venv/bin/pip install -r requirements-dev.txt && .venv/bin/pytest tests`.
+Pas de suite de tests ni de linter configurés dans ce dépôt.
 
 ```bash
 python3 -m venv .venv
@@ -34,12 +34,11 @@ Configuration via `.env` (copié depuis `.env.example`, jamais versionné) : `LL
 2. `llm.py` construit un prompt (consignes + schéma complet du formulaire en préfixe mis en cache, question posée en suffixe) et appelle le modèle configuré (Albert API ou Claude), en contraignant la sortie par un schéma JSON (`RESPONSE_SCHEMA`). `_sanitize()` ne garde que des valeurs cohérentes avec le type de la question avant de répondre.
 3. Si l'API est indisponible (`LLMUnavailable`), le front bascule sur `static/js/local-nlu.js` (mots-clés, oui/non, dates, nombres, sans IA) — mode à préserver pour toute nouvelle question.
 4. `static/js/main.js` pilote la conversation (étapes, navigation, relances), `static/js/form.js` rend le formulaire en DSFR et évalue les conditions `when`.
-5. **Mémoire « le dire une fois »** (`static/js/memory.js`, transcription + faits avec citation) : pendant que l'usager parle, chaque morceau de phrase définitif (`Listener.onSegment`) est envoyé à `POST /api/extract` quand l'usager reprend la parole (`onResume`), un appel à la fois ; le dernier morceau passe par `/api/interpret`, qui renvoie aussi des `facts`. `llm.sanitize_facts` rejette les faits dont la citation n'a pas été dite ou dont la valeur est invalide. Les faits pré-remplissent les questions suivantes (confirmation oui / non, `askPrefilled`) ; une contradiction avec une réponse déjà donnée est vérifiée avec l'usager avant la question suivante (`askConflict`). Panneau de débogage (`static/js/debug-memory.js`) si `MEMOIRE_DEBUG=1`. Conception : `docs/plan-memoire.md`.
-6. `POST /api/navigate` retrouve une question déjà posée que l'usager veut revoir (« la question sur le logement ») via `llm.find_question`.
-7. En fin de parcours, `POST /api/cerfa-partie-b.pdf` (`pdf_cerfa.py`) remplit le Cerfa officiel (`pdf/cerfa_15692-01.pdf`) à partir des réponses et ne renvoie que les pages 5 à 8, en élaguant l'arbre de structure du PDF plutôt qu'en copiant les pages (pour préserver le balisage d'accessibilité, RGAA 13.3). **Toute nouvelle question destinée au Cerfa doit être ajoutée à la correspondance (`CHECKS`/`TEXTS`/`DATES`/...) de `pdf_cerfa.py`**, sinon elle n'apparaît pas dans le PDF produit.
-8. `tts.py` sert la synthèse vocale naturelle (Piper, modèles dans `voices/`, non versionnés) via `POST /api/tts` ; sans modèle disponible, le front retombe sur la voix du navigateur.
+5. `POST /api/navigate` retrouve une question déjà posée que l'usager veut revoir (« la question sur le logement ») via `llm.find_question`.
+6. En fin de parcours, `POST /api/cerfa-partie-b.pdf` (`pdf_cerfa.py`) remplit le Cerfa officiel (`pdf/cerfa_15692-01.pdf`) à partir des réponses et ne renvoie que les pages 5 à 8, en élaguant l'arbre de structure du PDF plutôt qu'en copiant les pages (pour préserver le balisage d'accessibilité, RGAA 13.3). **Toute nouvelle question destinée au Cerfa doit être ajoutée à la correspondance (`CHECKS`/`TEXTS`/`DATES`/...) de `pdf_cerfa.py`**, sinon elle n'apparaît pas dans le PDF produit.
+7. `tts.py` sert la synthèse vocale naturelle (Piper, modèles dans `voices/`, non versionnés) via `POST /api/tts` ; sans modèle disponible, le front retombe sur la voix du navigateur.
 
-**Rien n'est conservé côté serveur** : pas de base de données, pas de session utilisateur, pas de cache des réponses de `/api/*` (`Cache-Control: no-store`). Les réponses, la mémoire et la transcription ne vivent que dans le navigateur (`localStorage`, effacées 7 jours après la dernière activité ou par « Effacer toutes mes réponses »).
+**Rien n'est conservé côté serveur** : pas de base de données, pas de session utilisateur, pas de cache des réponses de `/api/*` (`Cache-Control: no-store`). Les réponses au formulaire ne vivent que dans le navigateur jusqu'à l'export PDF.
 
 **Deux fournisseurs de LLM** interchangeables par `LLM_PROVIDER` (`llm.py`) : `anthropic` (Claude, sortie contrainte par schéma JSON natif) et toute autre valeur (`openai` par convention) pour un fournisseur **compatible avec l'API OpenAI** (chat completions) — Albert API de l'État par défaut (`OPENAI_BASE_URL`/`OPENAI_API_KEY`/`OPENAI_MODEL`), ou n'importe quelle autre passerelle compatible (par exemple LiteLLM) en changeant seulement ces trois variables, sans toucher au code ; bascule automatique vers le mode « objet JSON » si le modèle refuse la sortie par schéma.
 

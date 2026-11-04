@@ -15,7 +15,7 @@ python3 -m venv .venv
 
 - **Voix naturelles** : [Piper](https://github.com/OHF-Voice/piper1-gpl) (synthèse neuronale open source, licence GPL-3.0), exécuté sur le serveur : aucun texte ne part vers un service tiers. Voix françaises `fr_FR-siwis-medium` (féminine, par défaut) et `fr_FR-tom-medium` (masculine), dans `voices/` (non versionné). Vérifier la licence de chaque voix sur sa fiche avant une mise en production.
 - Sans Piper ou sans les modèles, le site utilise la voix du navigateur (en choisissant sa voix la plus naturelle).
-- Fenêtre « Réglages de la voix » : vitesse (très lente à rapide), lecture des questions à voix haute, écoute automatique (activée par défaut : le micro s'ouvre après chaque question et se ferme après 4 secondes de silence ; désactivé : « Parler » pour commencer, « J'ai fini de parler » pour terminer). La voix (féminine) et le silence avant la fin de l'écoute (4 secondes) sont fixes. Seule exception : quand l'assistant attend un oui ou un non et que l'usager l'a clairement dit en quelques mots, l'écoute se ferme après 1,5 seconde.
+- Fenêtre « Réglages de la voix » : vitesse (très lente à rapide), lecture des questions à voix haute, écoute automatique (activée par défaut : le micro s'ouvre après chaque question et se ferme après 4 secondes de silence ; désactivé : « Parler » pour commencer, « J'ai fini de parler » pour terminer). La voix (féminine) et le silence avant la fin de l'écoute (4 secondes) sont fixes.
 - Les sigles sont lus en toutes lettres puis épelés, grâce au glossaire `acronyms` de `static/form-b.json`. Un sigle dit par l'usager (« le RSA », « l'ARE ») coche l'option correspondante ; les sigles absents d'un libellé s'ajoutent aux `synonyms` de l'option.
 
 ### Choisir l'IA
@@ -65,22 +65,11 @@ Le script lance le serveur (s'il ne tourne pas déjà) et ouvre un tunnel Cloudf
 - À la fin, « Imprimer le Cerfa rempli » et « Enregistrer le Cerfa rempli (PDF) » produisent les pages 5 à 8 du Cerfa officiel, remplies avec les réponses (`/api/cerfa-partie-b.pdf`). Les champs restent modifiables dans un lecteur PDF. Rien n'est conservé sur le serveur. Une nouvelle question du formulaire doit être ajoutée à la correspondance de `pdf_cerfa.py` pour apparaître dans le PDF.
 - Commandes rapides reconnues localement : « répète », « question précédente », « passer », « pause ».
 
-### Mémoire : « le dire une fois »
-
-- **Pendant que l'usager parle**, chaque morceau de phrase définitif (fin d'une courte pause) est gardé. Quand l'usager reprend la parole, les morceaux pas encore lus partent à `/api/extract` : la question en cours se coche à l'écran (valeur provisoire, pas encore enregistrée) et les informations qui répondent à **d'autres** questions sont notées dans la mémoire. Le dernier morceau part avec `/api/interpret` à la fin de la réponse, qui renvoie lui aussi ces informations : une réponse courte ne coûte aucun appel de plus, une réponse en N morceaux coûte N appels.
-- **Mémoire** (`static/js/memory.js`) : la transcription de tout l'échange (jamais réécrite) et des **faits**, chacun lié à une question, avec la citation exacte de l'usager. Le serveur rejette tout fait dont la citation n'a pas été dite, dont la question est inconnue ou dont la valeur ne correspond pas au type de la question (`llm.sanitize_facts`). Un fait corrigé n'est pas effacé : il est marqué « remplacé ».
-- **Pré-remplissage** : une question déjà renseignée par la conversation est cochée, avec le badge « Pré-rempli d'après ce que vous avez dit » ; l'assistant rappelle la citation et demande « Est-ce bien cela ? ». Oui : réponse confirmée. Non : la question est posée en entier. Une phrase plus longue est une correction, interprétée par l'IA. Les réponses pré-remplies jamais confirmées sont listées sur l'écran de fin.
-- **Contradictions** : une information qui contredit une réponse déjà donnée ne la change jamais d'elle-même. Avant la question suivante, l'assistant demande s'il faut changer la réponse.
-- **Stockage** : réponses, mémoire et transcription restent dans le navigateur (`localStorage`), pour reprendre après une coupure ou la fermeture de l'onglet ; effacées 7 jours après la dernière activité, ou par « Effacer toutes mes réponses ». Le serveur ne conserve rien.
-- **Transcription** : téléchargeable en texte à la fin (« Télécharger la transcription de l'échange »), créée dans le navigateur.
-- **Panneau de débogage** : avec `MEMOIRE_DEBUG=1` (dans `.env` ou au lancement), un panneau à côté des questions montre les faits, la transcription et le journal des appels (durée, faits gardés et refusés, silence de fin de réponse). En production, laisser cette variable vide : le panneau n'est alors ni affiché ni chargé.
-- Conception et suivi : [docs/plan-memoire.md](docs/plan-memoire.md).
-
 ## Structure
 
 ```
 app.py               serveur Flask, en-têtes de sécurité, API
-llm.py               prompts, schémas de réponse et d'extraction, vérification des faits, appel au fournisseur compatible OpenAI (Albert par défaut) ou à Claude
+llm.py               prompt, schéma de réponse, appel au fournisseur compatible OpenAI (Albert par défaut) ou à Claude
 tts.py               voix naturelles (Piper) : /api/tts
 pdf_cerfa.py         remplissage de la partie B du Cerfa (correspondance questions → champs du PDF)
 pdf/cerfa_15692-01.pdf  Cerfa 15692*01 officiel à champs remplissables (non servi tel quel)
@@ -90,9 +79,6 @@ static/js/main.js    déroulé de la conversation
 static/js/form.js    rendu DSFR du formulaire, conditions
 static/js/voice.js   synthèse et reconnaissance vocales
 static/js/local-nlu.js  mode de secours sans IA
-static/js/memory.js  mémoire de la conversation (transcription et faits)
-static/js/debug-memory.js  panneau de débogage de la mémoire (MEMOIRE_DEBUG=1)
-tests/               tests (pytest) : .venv/bin/pip install -r requirements-dev.txt && .venv/bin/pytest tests
 static/vendor/dsfr   DSFR 1.15.3 hébergé localement
 docs/                spécifications fonctionnelles et notice technique (PDF)
 docs/generateur/     production du PDF : captures.py, cerfa.py, build.py, print.py (voir LISEZMOI.md)
@@ -105,4 +91,3 @@ docs/generateur/     production du PDF : captures.py, cerfa.py, build.py, print.
 - **Données de santé** : les phrases partent vers l'API d'IA choisie (un fournisseur compatible OpenAI comme Albert, ou Claude) et, pour la reconnaissance vocale, vers les serveurs de Google (Chrome) ou d'Apple (Safari). Il faut une analyse d'impact (AIPD), une information claire des usagers, et vérifier les exigences d'hébergement de données de santé (HDS). Une reconnaissance vocale hébergée côté serveur (par exemple Whisper) supprimerait la dépendance au navigateur.
 - **Marque de l'État** : le DSFR et le bloc « République française » sont réservés aux sites de l'administration. Un site privé doit retirer le bloc-marque.
 - Tests avec des usagers (lecteur d'écran, troubles de la parole, déficience intellectuelle).
-- **Mémoire** : `MEMOIRE_DEBUG` vide. Les réponses et la transcription restent 7 jours dans le navigateur : à mentionner dans l'AIPD (appareils partagés). Vérifier avec de vraies voix que la fin d'écoute rapide (1,5 s après un oui / non) ne coupe pas la parole.

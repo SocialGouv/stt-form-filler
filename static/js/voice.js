@@ -290,19 +290,14 @@ export class Speaker {
  * `initialMs` s'il ne dit rien). Cela lui laisse le temps de réfléchir.
  * `continuous` : ne s'arrête pas seule (l'usager appuie sur « J'ai fini de parler »).
  * `onInterim(texte)` affiche la transcription en direct.
- * `onSegment(texte)` : un morceau de phrase est définitif (le navigateur ne le changera plus).
- * `onResume()` : l'usager reprend la parole après un morceau définitif (sa réponse continue).
  */
 export class Listener {
-  constructor({ onInterim, onState, onSegment = () => {}, onResume = () => {} }) {
+  constructor({ onInterim, onState }) {
     this.onInterim = onInterim;
     this.onState = onState;
-    this.onSegment = onSegment;
-    this.onResume = onResume;
     this.continuous = false;
     this.silenceMs = 4000;
     this.initialMs = 12000;
-    this.turnSilenceMs = null; // silence plus court pour cette écoute seulement (voir shorten)
     this.ctl = null; // écoute en cours
   }
 
@@ -311,7 +306,6 @@ export class Listener {
   listen() {
     if (!canListen) return Promise.reject(new Error('unsupported'));
     this.stop();
-    this.turnSilenceMs = null;
     return new Promise((resolve, reject) => {
       const ctl = { rec: null, done: false, finishing: false, cancelled: false };
       this.ctl = ctl;
@@ -321,15 +315,8 @@ export class Listener {
       let lastActivity = Date.now();
       let timer = null;
       let open = false; // le micro a effectivement démarré
-      let resumeDue = false; // un morceau est définitif : la prochaine parole est une reprise
       const text = () => `${saved} ${current}`.replace(/\s+/g, ' ').trim();
-      const segment = (t) => {
-        t = t.replace(END_PHRASE, '').replace(/\s+/g, ' ').trim();
-        if (!t) return;
-        resumeDue = true;
-        this.onSegment(t);
-      };
-      const limit = () => (heard ? (this.turnSilenceMs ?? this.silenceMs) : this.initialMs);
+      const limit = () => (heard ? this.silenceMs : this.initialMs);
 
       ctl.end = (value, error) => {
         if (ctl.done) return;
@@ -345,9 +332,8 @@ export class Listener {
       ctl.text = text;
       const arm = () => {
         clearTimeout(timer);
-        if (!this.continuous) timer = setTimeout(() => this.finish(ctl), Math.max(0, limit() - (Date.now() - lastActivity)));
+        if (!this.continuous) timer = setTimeout(() => this.finish(ctl), limit());
       };
-      ctl.arm = arm;
 
       const session = () => {
         const rec = new Recognition();
@@ -357,7 +343,6 @@ export class Listener {
         rec.maxAlternatives = 1;
         ctl.rec = rec;
         let failure = null;
-        let emitted = 0; // résultats de cette écoute déjà signalés comme définitifs
         rec.onstart = () => {
           // Bip de début à la première ouverture du micro seulement (pas aux relances).
           if (!open) beep('start');
@@ -365,20 +350,8 @@ export class Listener {
           this.onState('listening');
         };
         rec.onresult = (e) => {
-          rec.lastResults = e.results;
           current = '';
           for (let i = 0; i < e.results.length; i++) current += e.results[i][0].transcript;
-          // Nouvelle parole après un morceau définitif : la réponse continue.
-          let fresh = '';
-          for (let i = emitted; i < e.results.length; i++) fresh += e.results[i][0].transcript;
-          if (resumeDue && fresh.trim()) {
-            resumeDue = false;
-            this.onResume();
-          }
-          while (emitted < e.results.length && e.results[emitted].isFinal) {
-            segment(e.results[emitted][0].transcript);
-            emitted += 1;
-          }
           if (current.trim()) heard = true;
           lastActivity = Date.now();
           this.onInterim(text());
@@ -388,13 +361,6 @@ export class Listener {
         rec.onerror = (e) => { failure = e.error; };
         rec.onend = () => {
           if (ctl.done || ctl.rec !== rec) return;
-          // Fin de cette écoute : ce qui n'a pas été signalé comme définitif l'est maintenant.
-          if (!ctl.cancelled && rec.lastResults) {
-            let rest = '';
-            for (let i = emitted; i < rec.lastResults.length; i++) rest += rec.lastResults[i][0].transcript;
-            emitted = rec.lastResults.length;
-            segment(rest);
-          }
           saved = text();
           current = '';
           if (ctl.cancelled) return ctl.end(null);
@@ -419,16 +385,6 @@ export class Listener {
         ctl.end(undefined, err);
       }
     });
-  }
-
-  /**
-   * Réponse courte et claire (« oui », « non ») : l'écoute se termine après `ms` de silence au lieu
-   * du silence habituel, pour cette écoute seulement. Sans effet en mode « J'ai fini de parler ».
-   */
-  shorten(ms) {
-    if (!this.ctl || this.continuous) return;
-    this.turnSilenceMs = Math.min(ms, this.silenceMs);
-    this.ctl.arm();
   }
 
   /** Termine l'écoute et garde ce qui a été dit. */

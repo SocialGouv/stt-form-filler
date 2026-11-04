@@ -18,7 +18,6 @@ import logging
 import os
 import re
 import sys
-import unicodedata
 
 import anthropic
 import httpx
@@ -129,33 +128,10 @@ Questions de type "longtext" (rédaction assistée) :
 2. Quand tu as assez d'informations, rédige dans "text" un texte clair, structuré en courts paragraphes, à la première personne (ou « mon enfant… » si le formulaire concerne un enfant), fidèle à ce qui a été dit, sans rien inventer ni exagérer, dans un registre adapté à un dossier administratif. Mets "awaiting_validation" à true, "complete" à false, et dans "message" lis le texte puis demande si cela convient ou s'il faut changer quelque chose.
 3. Si un texte a déjà été proposé ("draft" non vide) : si la personne valide, recopie ce texte dans "text", "complete" = true, "awaiting_validation" = false. Si elle demande une modification, applique-la, renvoie le nouveau texte complet dans "text", "awaiting_validation" = true, et relis-le.
 
-Mémoire : "memoire" liste les informations que l'usager a déjà données ailleurs dans la conversation ({id, qid : question visée ou null, text}). Sers-t'en pour comprendre sa réponse (« comme je vous l'ai dit »), sans lui faire répéter ce qu'il a déjà dit.
-
-Champ "facts" : l'usager donne souvent, en répondant, des informations qui répondent à D'AUTRES questions du formulaire (« je vis seul depuis que j'ai l'AAH »). Liste-les dans "facts", seulement celles qui viennent du texte "texte_a_extraire" (ou, à défaut, de "derniere_phrase_usager"), un fait par question. Pour chaque fait : "qid" = identifiant de la question visée (null si l'information ne correspond à aucune question mais sera utile plus tard) ; "fact" = une phrase courte qui résume l'information (« Vit seul », « Perçoit l'AAH depuis mars 2021 ») ; la valeur selon le type de la question visée, dans "selected", "none_apply", "yes_no", "date" (JJ/MM/AAAA), "number" ou "text", les autres champs vides ou null ; "quote" = le plus court extrait EXACT des mots de l'usager qui justifie cette information (quelques mots, recopiés tels quels, pas toute la phrase) ; "replaces" = l'"id" du fait de "memoire" que cette information corrige, sinon null. N'invente rien et ne déduis pas ce qui n'est pas dit. Pas de fait sur la question en cours (sa réponse va dans les autres champs). Pas de fait déjà en mémoire avec la même valeur. Sinon, "facts" vide.
-
 Ne donne jamais de conseil médical ou juridique, et ne promets jamais qu'un droit sera accordé : c'est la MDPH qui décide. Si la personne exprime une détresse ou un danger immédiat, réponds avec empathie et indique le 15 (urgences médicales), le 112 ou le 3114 (prévention du suicide), puis propose de continuer plus tard.
 
 Voici le schéma complet de la partie B, pour le contexte (les questions sont posées une par une) :
 """
-
-# Information donnée par l'usager pour une AUTRE question que celle en cours (mémoire « le dire une fois »).
-FACT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "qid": {"type": ["string", "null"]},
-        "fact": {"type": "string"},
-        "selected": {"type": "array", "items": {"type": "string"}},
-        "none_apply": {"type": "boolean"},
-        "yes_no": {"type": "string", "enum": ["oui", "non", "inconnu"]},
-        "date": {"type": ["string", "null"]},
-        "number": {"type": ["number", "null"]},
-        "text": {"type": ["string", "null"]},
-        "quote": {"type": "string"},
-        "replaces": {"type": ["string", "null"]},
-    },
-    "required": ["qid", "fact", "selected", "none_apply", "yes_no", "date", "number", "text", "quote", "replaces"],
-    "additionalProperties": False,
-}
 
 RESPONSE_SCHEMA = {
     "type": "object",
@@ -208,11 +184,10 @@ RESPONSE_SCHEMA = {
             },
         },
         "message": {"type": "string"},
-        "facts": {"type": "array", "items": FACT_SCHEMA},
     },
     "required": [
         "intent", "selected", "none_apply", "yes_no", "date", "number",
-        "text", "rows", "complete", "awaiting_validation", "precisions", "navigation", "message", "facts",
+        "text", "rows", "complete", "awaiting_validation", "precisions", "navigation", "message",
     ],
     "additionalProperties": False,
 }
@@ -232,12 +207,8 @@ def _system_text(form):
 def interpret(form, question, context):
     """Interprète la réponse de l'usager à `question`.
 
-    context : {utterance, history: [{role, text}], draft, current_value, concerne,
-               memoire: [{id, qid, text}], pending: texte pas encore passé par extract()}
-    Renvoie aussi "facts" (informations pour d'autres questions, vérifiées) et "rejected".
+    context : {utterance, history: [{role, text}], draft, current_value, concerne}
     """
-    memoire = context.get("memoire") or []
-    pending = context.get("pending") or ""
     payload = {
         "formulaire_rempli_pour": context.get("concerne") or "inconnu",
         "date_du_jour": datetime.date.today().strftime("%d/%m/%Y"),
@@ -245,15 +216,8 @@ def interpret(form, question, context):
         "valeur_actuelle": context.get("current_value"),
         "echanges_sur_cette_question": context.get("history", [])[-12:],
         "draft": context.get("draft") or "",
-        "memoire": memoire,
         "derniere_phrase_usager": context["utterance"],
     }
-    if pending:
-        payload["texte_a_extraire"] = pending
-        payload["consigne_facts"] = (
-            "Relis \"texte_a_extraire\" phrase par phrase : chaque information qui répond à une AUTRE question "
-            "du formulaire (logement, ressources, aides, difficultés, besoins...) DOIT être dans \"facts\", avec sa citation exacte."
-        )
     with_precision = _options_with_precision(form, question)
     if with_precision:
         payload["options_avec_precision"] = with_precision
@@ -267,148 +231,7 @@ def interpret(form, question, context):
     )
 
     data = _complete(_system_text(form), user_text, RESPONSE_SCHEMA, cache=True)
-    result = _sanitize(question, data)
-    facts, rejected = sanitize_facts(
-        form, question["id"], data.get("facts"), pending or context["utterance"], {m["id"] for m in memoire})
-    result["facts"] = facts
-    result["rejected"] = rejected
-    return result
-
-
-# ---------- Extraction en direct (pendant que l'usager parle) ----------
-
-EXTRACT_INSTRUCTIONS = """Tâche différente de d'habitude : extraction en direct. L'usager est EN TRAIN de parler, il n'a pas fini sa réponse. Ne lui réponds pas.
-Tu reçois la question en cours, tout ce qu'il a dit depuis le début de sa réponse ("texte_du_tour"), le dernier morceau qu'il vient de dire ("nouveau_segment") et la mémoire des informations déjà notées ("memoire").
-1. "current" : la réponse à la question en cours d'après TOUT "texte_du_tour", avec les mêmes règles que d'habitude selon le type de la question ("selected", "none_apply", "yes_no", "date", "number", "text", "precisions"). Ne remplis que ce qui est dit clairement ; sinon laisse vide ou null. "complete" = true seulement si la réponse à la question en cours est complète et sans ambiguïté.
-2. "facts" : les informations du "nouveau_segment" SEULEMENT qui répondent à d'autres questions du formulaire, avec les règles habituelles du champ "facts" ("quote" recopiée du "nouveau_segment").
-Réponds uniquement avec l'objet JSON demandé."""
-
-EXTRACT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "current": {
-            "type": "object",
-            "properties": {
-                key: RESPONSE_SCHEMA["properties"][key]
-                for key in ("selected", "none_apply", "yes_no", "date", "number", "text", "precisions", "complete")
-            },
-            "required": ["selected", "none_apply", "yes_no", "date", "number", "text", "precisions", "complete"],
-            "additionalProperties": False,
-        },
-        "facts": {"type": "array", "items": FACT_SCHEMA},
-    },
-    "required": ["current", "facts"],
-    "additionalProperties": False,
-}
-
-
-def extract(form, question, context):
-    """Extraction pendant que l'usager parle : valeur provisoire de la question en cours (d'après tout
-    le tour) et faits pour les autres questions (d'après le dernier segment seulement).
-
-    context : {segment, turn_text, memoire: [{id, qid, text}], concerne}
-    Renvoie {"current": même forme que interpret() (sans message), "facts": [...], "rejected": [...]}.
-    """
-    memoire = context.get("memoire") or []
-    payload = {
-        "formulaire_rempli_pour": context.get("concerne") or "inconnu",
-        "date_du_jour": datetime.date.today().strftime("%d/%m/%Y"),
-        "question": question,
-        "memoire": memoire,
-        "texte_du_tour": context.get("turn_text") or context["segment"],
-        "nouveau_segment": context["segment"],
-    }
-    user_text = EXTRACT_INSTRUCTIONS + "\n" + json.dumps(payload, ensure_ascii=False, indent=1)
-    data = _complete(_system_text(form), user_text, EXTRACT_SCHEMA, cache=True)
-    current = data.get("current") if isinstance(data.get("current"), dict) else {}
-    result = _sanitize(question, {**current, "intent": "answer"})
-    result["message"] = ""
-    facts, rejected = sanitize_facts(form, question["id"], data.get("facts"), context["segment"], {m["id"] for m in memoire})
-    return {"current": result, "facts": facts, "rejected": rejected}
-
-
-MAX_FACTS = 12
-DATE_RE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
-
-
-def _normalize(text):
-    """Texte comparable : minuscules, sans accents ni ponctuation, espaces simples."""
-    text = unicodedata.normalize("NFD", str(text or "").lower())
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    return " ".join(re.sub(r"[^\w]+", " ", text).split())
-
-
-def _fact_value(question, s):
-    """Valeur utile d'un fait déjà nettoyé par _sanitize, ou None s'il n'en a pas."""
-    qtype = question["type"]
-    if qtype in ("single", "multi"):
-        if s["selected"]:
-            return s["selected"]
-        return True if qtype == "multi" and s["none_apply"] and question.get("allowNone") else None
-    if qtype == "yesno":
-        return s["yes_no"]
-    if qtype == "date":
-        return s["date"] if isinstance(s["date"], str) and DATE_RE.match(s["date"]) else None
-    if qtype == "number":
-        return s["number"] if isinstance(s["number"], (int, float)) and not isinstance(s["number"], bool) else None
-    if qtype in ("text", "longtext"):
-        return (s["text"] or "").strip() or None
-    return None  # tableaux : pas d'extraction (pour l'instant)
-
-
-def sanitize_facts(form, current_qid, facts, source_text, known_ids):
-    """Ne garde que des faits vérifiables : question connue (autre que la question en cours), valeur
-    valide pour son type, citation présente dans `source_text` (ce que l'usager a vraiment dit).
-    Renvoie (faits gardés, refus [{reason, qid, quote}]) ; les refus servent au panneau de débogage."""
-    questions = {q["id"]: q for q in form["questions"]}
-    source = _normalize(source_text)
-    kept, rejected = [], []
-    for raw in (facts or [])[:MAX_FACTS * 2]:
-        if not isinstance(raw, dict):
-            continue
-        qid = raw.get("qid") or None
-        quote = str(raw.get("quote") or "").strip()[:300]
-        fact_text = str(raw.get("fact") or "").strip()[:200]
-
-        def refuse(reason):
-            rejected.append({"reason": reason, "qid": qid, "quote": quote})
-
-        if qid is not None and qid not in questions:
-            refuse("question_inconnue")
-            continue
-        if qid == current_qid:
-            refuse("question_en_cours")
-            continue
-        norm_quote = _normalize(quote)
-        if not norm_quote or norm_quote not in source:
-            refuse("citation_absente")
-            continue
-        fact = {
-            "qid": qid, "fact": fact_text, "quote": quote,
-            "replaces": raw.get("replaces") if raw.get("replaces") in known_ids else None,
-            "selected": [], "none_apply": False, "yes_no": None, "date": None, "number": None, "text": None,
-        }
-        if qid is None:
-            if not fact_text:
-                refuse("vide")
-                continue
-        else:
-            question = questions[qid]
-            s = _sanitize(question, {**raw, "intent": "answer"})
-            if _fact_value(question, s) is None:
-                refuse("valeur_invalide")
-                continue
-            for key in ("selected", "none_apply", "yes_no", "date", "number", "text"):
-                fact[key] = s[key]
-            if question["type"] in ("single", "multi"):
-                fact["none_apply"] = bool(s["none_apply"] and not s["selected"])
-            if not fact["fact"]:
-                fact["fact"] = question.get("short") or question["label"]
-        if len(kept) >= MAX_FACTS:
-            refuse("trop_de_faits")
-            continue
-        kept.append(fact)
-    return kept, rejected
+    return _sanitize(question, data)
 
 
 NAVIGATION_PROMPT = """Tu aides un site vocal qui fait remplir la partie B du formulaire de demande à la MDPH.
