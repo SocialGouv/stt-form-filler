@@ -46,7 +46,7 @@ const SILENCE_MS = 4000;
 const speaker = new Speaker();
 speaker.onFallback = () => announce('La voix naturelle ne répond pas. La voix du navigateur prend le relais.');
 const listener = new Listener({
-  onInterim: (t) => { showTranscription(t); scheduleExtract(t); },
+  onInterim: (t) => showTranscription(t),
   onState: (st) => renderMicState(st),
   onSegment: (t) => {
     if (!S.turn || S.turn.ended) return;
@@ -54,6 +54,7 @@ const listener = new Listener({
     S.turn.lastSegmentAt = performance.now();
     quickEnd(S.turn);
   },
+  onResume: () => extractPending(),
 });
 
 // ---------- Stockage ----------
@@ -697,7 +698,7 @@ async function startListening() {
     return;
   }
   finally {
-    endTurn(turn);
+    turn.ended = true;
     // Panneau de débogage : silence attendu entre le dernier mot et la fin de l'écoute.
     if (turn.lastSegmentAt) logCall('fin de réponse', turn.lastSegmentAt, null, turn.quick ? 'oui / non : fin rapide' : 'silence habituel');
   }
@@ -707,71 +708,34 @@ async function startListening() {
 }
 
 // ---------- Remplissage pendant que l'usager parle ----------
-// Pendant l'écoute, le texte entendu (même provisoire) part à /api/extract au plus toutes les
-// EXTRACT_EVERY_MS, dès qu'il contient au moins EXTRACT_MIN_WORDS mots nouveaux : la question en cours
-// se coche à l'écran et les informations pour d'autres questions vont dans la mémoire. Un seul appel
-// à la fois ; ce qui est dit entre-temps part avec l'appel suivant. Ce qui reste à la fin de la
-// réponse part avec /api/interpret : une réponse courte ne coûte aucun appel de plus.
+// Le navigateur signale chaque morceau de phrase définitif. Quand l'usager reprend la parole (sa
+// réponse continue), les morceaux pas encore lus partent à /api/extract : la question en cours se
+// coche à l'écran et les informations pour d'autres questions vont dans la mémoire. Un seul appel
+// à la fois ; les morceaux arrivés entre-temps partent avec l'appel suivant. Le dernier morceau
+// part avec /api/interpret, à la fin de la réponse : une réponse courte ne coûte aucun appel de plus.
 
-const EXTRACT_EVERY_MS = 2000;
-const EXTRACT_MIN_WORDS = 4;
 let turnSeq = 0;
 
 function startTurn(qid) {
-  S.turn = {
-    id: ++turnSeq, qid, segments: [], text: '', extractedText: '', timer: null, inFlight: false, ended: false, live: null,
-  };
+  S.turn = { id: ++turnSeq, qid, segments: [], extracted: 0, inFlight: false, ended: false, live: null };
   return S.turn;
-}
-
-function endTurn(turn) {
-  turn.ended = true;
-  clearTimeout(turn.timer);
-  turn.timer = null;
 }
 
 /** Questions remplies en direct : pas les tableaux ni les propositions lues une par une. */
 const liveExtraction = (q) => Boolean(q) && !q.oneByOne && q.type !== 'table' && llmAvailable();
 
-const wordCount = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
-
-/**
- * Partie de `text` pas encore envoyée à l'IA. Le navigateur peut corriger des mots déjà affichés :
- * on repart alors du dernier mot commun avec ce qui a été envoyé.
- */
-function unsent(turn, text) {
-  const sent = turn.extractedText;
-  let i = 0;
-  while (i < sent.length && i < text.length && sent[i] === text[i]) i++;
-  if (i < sent.length) i = text.lastIndexOf(' ', i) + 1; // mot modifié : repris en entier
-  return text.slice(i).trim();
-}
-
-/** Texte entendu (provisoire) : extraction programmée, au plus une fois toutes les EXTRACT_EVERY_MS. */
-function scheduleExtract(text) {
+async function extractPending() {
   const turn = S.turn;
-  if (!turn || turn.ended) return;
-  turn.text = text;
-  if (turn.timer || turn.inFlight) return; // déjà prévue : elle prendra le texte le plus récent
-  // EXTRACT_EVERY_MS entre deux envois : tout de suite si l'envoi précédent est déjà assez ancien.
-  const wait = turn.sentAt ? Math.max(0, EXTRACT_EVERY_MS - (performance.now() - turn.sentAt)) : EXTRACT_EVERY_MS;
-  turn.timer = setTimeout(() => { turn.timer = null; extractPending(turn); }, wait);
-}
-
-async function extractPending(turn) {
-  if (turn !== S.turn || turn.ended || turn.inFlight) return;
+  if (!turn || turn.ended || turn.inFlight || turn.extracted >= turn.segments.length) return;
   const q = question(turn.qid);
-  if (!liveExtraction(q) || S.pendingNav || S.resolving) return;
-  const text = turn.text;
-  const segment = unsent(turn, text);
-  if (wordCount(segment) < EXTRACT_MIN_WORDS) return;
+  if (!liveExtraction(q) || S.pendingNav) return;
+  const from = turn.extracted;
+  const segment = turn.segments.slice(from).join(' ');
+  turn.extracted = turn.segments.length;
   // Commande (« question suivante », « revenir à… ») : rien à extraire.
   if (detectCommand(segment) || detectStepCommand(segment) || detectNavigation(segment)) return;
-  const before = turn.extractedText;
-  turn.extractedText = text;
   turn.inFlight = true;
   const t0 = performance.now();
-  turn.sentAt = t0;
   try {
     const res = await fetch('/api/extract', {
       method: 'POST',
@@ -779,7 +743,7 @@ async function extractPending(turn) {
       body: JSON.stringify({
         question_id: q.id,
         segment,
-        turn_text: text,
+        turn_text: turn.segments.join(' '),
         memoire: memory.compact(),
         concerne: S.answers.concerne ?? null,
       }),
@@ -787,18 +751,16 @@ async function extractPending(turn) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const r = await res.json();
     logCall('extract', t0, r, segment);
-    // Les faits sont gardés même si la réponse s'est terminée entre-temps.
+    // Les faits viennent de morceaux définitifs : gardés même si la réponse s'est terminée entre-temps.
     rememberFacts(r.facts);
     // La valeur provisoire, elle, n'est affichée que tant que l'usager parle encore.
     if (!turn.ended && S.turn === turn && S.currentId === q.id) showLive(q, r.current, turn);
   } catch (err) {
     logCall('extract', t0, null, segment, err);
-    // Échec : ce texte partira avec /api/interpret à la fin de la réponse.
-    if (!turn.ended) turn.extractedText = before;
+    // Échec : ces morceaux partiront avec /api/interpret à la fin de la réponse.
+    if (!turn.ended) turn.extracted = Math.min(turn.extracted, from);
   } finally {
     turn.inFlight = false;
-    // L'usager a continué de parler pendant l'appel : extraction suivante.
-    if (!turn.ended && turn.text !== turn.extractedText) scheduleExtract(turn.text);
   }
 }
 
@@ -1087,7 +1049,7 @@ async function handleUtterance(text, turn = null) {
     S.busy = true;
     renderMicState('thinking');
     // Morceaux pas encore passés par /api/extract : leurs informations sont extraites maintenant.
-    const pending = turn ? unsent(turn, text) : '';
+    const pending = turn ? turn.segments.slice(turn.extracted).join(' ') : '';
     const t0 = performance.now();
     try {
       r = await callInterpret(q, text, pending);
@@ -1142,33 +1104,6 @@ async function applyResult(q, r) {
   switch (r.intent) {
     case 'repeat': return ask(q.id);
     case 'back': return goPrev();
-    case 'next_step': return goStep(1);
-    case 'prev_step': return goStep(-1);
-    case 'list': {
-      const list = q.options ? optionsSpeech(q) : questionSpeech(q);
-      logMessage('assistant', list);
-      await say(list);
-      return maybeListen();
-    }
-    case 'next': {
-      // « C'est tout, passons à la suite » : ce qui est dit dans la même phrase est enregistré, puis
-      // question suivante. Question à réponse libre : s'ajoute aux réponses déjà données.
-      let value = valueFromResult(q, r);
-      if (q.openAnswer && Array.isArray(value)) {
-        const before = (Array.isArray(S.answers[q.id]) ? S.answers[q.id] : []).filter((id) => id !== NONE);
-        value = value[0] === NONE ? (before.length || S.more === q.id ? undefined : value)
-          : q.options.map((o) => o.id).filter((id) => before.includes(id) || value.includes(id));
-      }
-      if (value !== undefined && !(q.type === 'date' && dateError(q, value))) setAnswer(q.id, value);
-      const precisions = fillPrecisions(q, r);
-      if (value !== undefined || precisions.length) noteSaved(q.id, precisions);
-      S.more = null;
-      st.history = [];
-      st.draft = '';
-      save();
-      await reply(r.message);
-      return nextAfterRecap(q, r.message, precisions);
-    }
     case 'goto': return goToQuestion({ target: r.navigation || '' }, lastUserText(q));
     case 'finish': return finish();
     case 'skip':
@@ -1275,16 +1210,7 @@ async function applyOptionResult(q, r) {
   };
 
   switch (r.intent) {
-    case 'repeat': case 'list': return askOption(q, i);
-    case 'next_step': return goStep(1);
-    case 'prev_step': return goStep(-1);
-    case 'next': {
-      // « Passons à la suite » pendant les propositions : on garde les réponses données et on passe.
-      st.step = null;
-      st.history = [];
-      save();
-      return goNext();
-    }
+    case 'repeat': return askOption(q, i);
     case 'back': return i > 0 ? askOption(q, i - 1, { intro: 'On revient à la proposition précédente.' }) : goPrev();
     case 'goto': return goToQuestion({ target: r.navigation || '' }, lastUserText(q));
     case 'finish': return finish();

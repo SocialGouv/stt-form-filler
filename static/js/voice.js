@@ -291,12 +291,14 @@ export class Speaker {
  * `continuous` : ne s'arrête pas seule (l'usager appuie sur « J'ai fini de parler »).
  * `onInterim(texte)` affiche la transcription en direct.
  * `onSegment(texte)` : un morceau de phrase est définitif (le navigateur ne le changera plus).
+ * `onResume()` : l'usager reprend la parole après un morceau définitif (sa réponse continue).
  */
 export class Listener {
-  constructor({ onInterim, onState, onSegment = () => {} }) {
+  constructor({ onInterim, onState, onSegment = () => {}, onResume = () => {} }) {
     this.onInterim = onInterim;
     this.onState = onState;
     this.onSegment = onSegment;
+    this.onResume = onResume;
     this.continuous = false;
     this.silenceMs = 4000;
     this.initialMs = 12000;
@@ -319,10 +321,12 @@ export class Listener {
       let lastActivity = Date.now();
       let timer = null;
       let open = false; // le micro a effectivement démarré
+      let resumeDue = false; // un morceau est définitif : la prochaine parole est une reprise
       const text = () => `${saved} ${current}`.replace(/\s+/g, ' ').trim();
       const segment = (t) => {
         t = t.replace(END_PHRASE, '').replace(/\s+/g, ' ').trim();
         if (!t) return;
+        resumeDue = true;
         this.onSegment(t);
       };
       const limit = () => (heard ? (this.turnSilenceMs ?? this.silenceMs) : this.initialMs);
@@ -364,6 +368,13 @@ export class Listener {
           rec.lastResults = e.results;
           current = '';
           for (let i = 0; i < e.results.length; i++) current += e.results[i][0].transcript;
+          // Nouvelle parole après un morceau définitif : la réponse continue.
+          let fresh = '';
+          for (let i = emitted; i < e.results.length; i++) fresh += e.results[i][0].transcript;
+          if (resumeDue && fresh.trim()) {
+            resumeDue = false;
+            this.onResume();
+          }
           while (emitted < e.results.length && e.results[emitted].isFinal) {
             segment(e.results[emitted][0].transcript);
             emitted += 1;

@@ -15,9 +15,7 @@ const plain = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/\p{
 export function factKey(f) {
   if (!f.qid) return `-:${plain(f.fact)}`;
   const selected = [...(f.selected || [])].sort();
-  // Question à choix : seules les options comptent (une date ou un détail en plus n'en fait pas un autre fait).
-  if (selected.length) return `${f.qid}:${JSON.stringify(selected)}`;
-  return `${f.qid}:${JSON.stringify([!!f.none_apply, f.yes_no ?? null, f.date ?? null, f.number ?? null, plain(f.text)])}`;
+  return `${f.qid}:${JSON.stringify([selected, !!f.none_apply, f.yes_no ?? null, f.date ?? null, f.number ?? null, plain(f.text)])}`;
 }
 
 export class Memory {

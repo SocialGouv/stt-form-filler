@@ -116,16 +116,11 @@ Champ "intent" :
 - "clarify" : réponse ambiguë, incomplète ou incohérente. Pose UNE question de précision courte. "complete" = false. Tu peux remplir ce qui est déjà sûr.
 - "help" : l'usager ne comprend pas, demande une explication ou répond à côté. Reformule en langage simple. "complete" = false.
 - "skip" : l'usager veut passer la question, ne veut pas répondre, ou dit qu'il ne sait pas (« je ne sais pas », « aucune idée », « je ne me souviens plus »…). "complete" = true, aucune valeur. S'il ne sait pas, "message" le rassure en une phrase : « Ce n'est pas grave. On passe à la suite, vous pourrez y revenir plus tard. »
-- "next" : l'usager a fini de répondre à cette question et demande de passer à la suite (« c'est tout », « c'est tout ce que j'ai à dire », « passons à la suite », « question suivante », « on continue »). Remplis aussi les valeurs s'il en donne dans la même phrase (« j'ai un fauteuil, passons à la suite »). "complete" = true. "message" vide ou très court.
 - "back" : l'usager veut revenir à la question précédente.
 - "goto" : l'usager veut revenir à une autre question que la précédente, ou corriger une réponse donnée plus tôt (« revenir à la question 5 », « je me suis trompé pour le logement »). Mets dans "navigation" le numéro de la question ou les mots qui la décrivent (« 5 », « logement », « AAH »). Sinon, "navigation" = null.
-- "next_step" / "prev_step" : l'usager veut passer à l'étape suivante, ou revenir à l'étape précédente (les questions sont regroupées en étapes).
-- "list" : l'usager veut entendre les réponses possibles (« lis-moi les réponses », « quels sont les choix ? »).
 - "repeat" : l'usager veut réentendre la question.
 - "pause" : l'usager veut faire une pause ou arrêter pour l'instant.
-- "finish" : l'usager veut aller à la fin du questionnaire, pour imprimer ou enregistrer le formulaire.
-Commandes vocales : l'usager pilote le site à la voix. Tu PEUX déclencher ces actions : dès qu'il demande l'une d'elles, même au milieu d'une phrase ou avec d'autres mots, choisis l'"intent" correspondant ; le site l'exécute. Ne lui dis jamais que tu ne peux pas le faire.
-Pour "skip", "next", "back", "next_step", "prev_step", "list", "repeat", "pause" et "finish", "message" peut être vide.
+Pour "skip", "back", "repeat" et "pause", "message" peut être vide.
 
 Quand "complete" est true avec "intent" = "answer", le "message" confirme brièvement ce que tu as noté, avec des mots simples (par exemple : « C'est noté : vous vivez seul, dans un logement dont vous êtes locataire. »). N'annonce pas la question suivante : le site s'en charge.
 
@@ -167,8 +162,7 @@ RESPONSE_SCHEMA = {
     "properties": {
         "intent": {
             "type": "string",
-            "enum": ["answer", "clarify", "help", "skip", "next", "back", "goto", "next_step", "prev_step",
-                     "list", "repeat", "pause", "finish"],
+            "enum": ["answer", "clarify", "help", "skip", "back", "goto", "repeat", "pause"],
         },
         "selected": {"type": "array", "items": {"type": "string"}},
         "none_apply": {"type": "boolean"},
@@ -274,9 +268,8 @@ def interpret(form, question, context):
 
     data = _complete(_system_text(form), user_text, RESPONSE_SCHEMA, cache=True)
     result = _sanitize(question, data)
-    # Citation cherchée dans toute la réponse : une information peut commencer avant "texte_a_extraire".
     facts, rejected = sanitize_facts(
-        form, question["id"], data.get("facts"), context["utterance"], {m["id"] for m in memoire})
+        form, question["id"], data.get("facts"), pending or context["utterance"], {m["id"] for m in memoire})
     result["facts"] = facts
     result["rejected"] = rejected
     return result
@@ -287,7 +280,7 @@ def interpret(form, question, context):
 EXTRACT_INSTRUCTIONS = """Tâche différente de d'habitude : extraction en direct. L'usager est EN TRAIN de parler, il n'a pas fini sa réponse. Ne lui réponds pas.
 Tu reçois la question en cours, tout ce qu'il a dit depuis le début de sa réponse ("texte_du_tour"), le dernier morceau qu'il vient de dire ("nouveau_segment") et la mémoire des informations déjà notées ("memoire").
 1. "current" : la réponse à la question en cours d'après TOUT "texte_du_tour", avec les mêmes règles que d'habitude selon le type de la question ("selected", "none_apply", "yes_no", "date", "number", "text", "precisions"). Ne remplis que ce qui est dit clairement ; sinon laisse vide ou null. "complete" = true seulement si la réponse à la question en cours est complète et sans ambiguïté.
-2. "facts" : les informations de "texte_du_tour" qui répondent à d'autres questions du formulaire et ne sont pas déjà dans "memoire", avec les règles habituelles du champ "facts" ("quote" recopiée de "texte_du_tour"). Regarde surtout "nouveau_segment" : une phrase peut être coupée entre deux morceaux, relis-la en entier dans "texte_du_tour".
+2. "facts" : les informations du "nouveau_segment" SEULEMENT qui répondent à d'autres questions du formulaire, avec les règles habituelles du champ "facts" ("quote" recopiée du "nouveau_segment").
 Réponds uniquement avec l'objet JSON demandé."""
 
 EXTRACT_SCHEMA = {
@@ -314,7 +307,6 @@ def extract(form, question, context):
     le tour) et faits pour les autres questions (d'après le dernier segment seulement).
 
     context : {segment, turn_text, memoire: [{id, qid, text}], concerne}
-    Le serveur ne garde rien : les faits déjà notés reviennent dans `memoire` (pas de doublon).
     Renvoie {"current": même forme que interpret() (sans message), "facts": [...], "rejected": [...]}.
     """
     memoire = context.get("memoire") or []
@@ -331,9 +323,7 @@ def extract(form, question, context):
     current = data.get("current") if isinstance(data.get("current"), dict) else {}
     result = _sanitize(question, {**current, "intent": "answer"})
     result["message"] = ""
-    # Citation cherchée dans tout le tour : une information peut être à cheval sur deux morceaux.
-    source = context.get("turn_text") or context["segment"]
-    facts, rejected = sanitize_facts(form, question["id"], data.get("facts"), source, {m["id"] for m in memoire})
+    facts, rejected = sanitize_facts(form, question["id"], data.get("facts"), context["segment"], {m["id"] for m in memoire})
     return {"current": result, "facts": facts, "rejected": rejected}
 
 
