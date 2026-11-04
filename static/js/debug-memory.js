@@ -94,7 +94,7 @@ export function mountDebugPanel({ memory, calls, schema, onCall, column }) {
         : el('li', {},
         el('span', { class: 'fr-text--bold', text: `${time(c.at)} ${c.kind} – ${c.ms} ms` }),
         c.error ? ` – erreur : ${c.error}` : ` – ${c.kept} fait(s) gardé(s), ${c.rejected.length} refusé(s)`,
-        c.rejected.length ? ` (${c.rejected.map((r) => `${r.reason}${r.qid ? ` [${r.qid}]` : ''} : ${r.fact ? `${r.fact} ` : ''}« ${r.quote} »`).join(' ; ')})` : '',
+        c.rejected.length ? ` (${c.rejected.map((r) => `${r.reason} : « ${r.quote} »`).join(' ; ')})` : '',
         el('br'), el('span', { class: 'fr-text--xs', text: `« ${c.text} »` })))))
       : el('p', { class: 'fr-text--sm', text: 'Aucun appel pour l’instant.' }));
   }
