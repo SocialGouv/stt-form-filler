@@ -780,8 +780,6 @@ async function extractPending(turn) {
         question_id: q.id,
         segment,
         turn_text: text,
-        // Texte libre : le brouillon provisoire reprend aussi les réponses aux relances précédentes.
-        history: ['text', 'longtext'].includes(q.type) ? stateOf(q.id).history.slice(-12) : [],
         memoire: memory.compact(),
         concerne: S.answers.concerne ?? null,
       }),
@@ -1106,13 +1104,6 @@ async function handleUtterance(text, turn = null) {
     }
   } else {
     r = interpretLocally(lq, text, st);
-  }
-  // Texte libre : l'assistant pose une question de relance au lieu de rédiger. Le brouillon affiché
-  // pendant l'écoute est gardé et enregistré, pour que ce qui a été dit ne disparaisse pas de l'écran.
-  if (['text', 'longtext'].includes(q.type) && typeof turn?.live === 'string' && !r.text
-    && (r.intent === 'clarify' || r.intent === 'answer')) {
-    setAnswer(q.id, turn.live);
-    turn.live = null;
   }
   clearLive(turn, q);
   // Correction d'une réponse pré-remplie : la nouvelle valeur confirme les faits si elle est la même,

@@ -287,7 +287,6 @@ def interpret(form, question, context):
 EXTRACT_INSTRUCTIONS = """Tâche différente de d'habitude : extraction en direct. L'usager est EN TRAIN de parler, il n'a pas fini sa réponse. Ne lui réponds pas.
 Tu reçois la question en cours, tout ce qu'il a dit depuis le début de sa réponse ("texte_du_tour"), le dernier morceau qu'il vient de dire ("nouveau_segment") et la mémoire des informations déjà notées ("memoire").
 1. "current" : la réponse à la question en cours d'après TOUT "texte_du_tour", avec les mêmes règles que d'habitude selon le type de la question ("selected", "none_apply", "yes_no", "date", "number", "text", "precisions"). Ne remplis que ce qui est dit clairement ; sinon laisse vide ou null. "complete" = true seulement si la réponse à la question en cours est complète et sans ambiguïté.
-Question de type "text" ou "longtext" : mets TOUJOURS dans "text" un brouillon provisoire, même si l'usager n'a pas fini : une reformulation fidèle et claire, à la première personne, de tout ce qu'il a dit pour cette question ("echanges_sur_cette_question" puis "texte_du_tour"), sans rien inventer ni ajouter. Il s'affiche à l'écran pendant qu'il parle. "complete" = false.
 2. "facts" : les informations de "texte_du_tour" qui répondent à d'autres questions du formulaire et ne sont pas déjà dans "memoire", avec les règles habituelles du champ "facts" ("quote" recopiée de "texte_du_tour"). Regarde surtout "nouveau_segment" : une phrase peut être coupée entre deux morceaux, relis-la en entier dans "texte_du_tour".
 Réponds uniquement avec l'objet JSON demandé."""
 
@@ -324,7 +323,6 @@ def extract(form, question, context):
         "date_du_jour": datetime.date.today().strftime("%d/%m/%Y"),
         "question": question,
         "memoire": memoire,
-        "echanges_sur_cette_question": (context.get("history") or [])[-12:],
         "texte_du_tour": context.get("turn_text") or context["segment"],
         "nouveau_segment": context["segment"],
     }
