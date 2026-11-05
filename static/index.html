@@ -43,20 +43,35 @@
     </div>
   </header>
 
-  <!-- Fil d'Ariane (DSFR) : sous l'en-tête, hors du contenu principal, sur tous les écrans sauf l'accueil.
-       Il suit la hiérarchie du parcours (Accueil › Avant de commencer › étape), pas l'historique. -->
-  <div class="fr-container" id="fil-ariane" hidden>
-    <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
-      <button type="button" class="fr-breadcrumb__button" aria-expanded="false" aria-controls="fil-ariane-liens">Voir le fil d’Ariane</button>
-      <div class="fr-collapse" id="fil-ariane-liens">
-        <ol class="fr-breadcrumb__list" id="fil-ariane-liste"></ol>
-      </div>
-    </nav>
-  </div>
-
   <main id="contenu" role="main" class="fr-container fr-py-4w">
     <div class="fr-grid-row fr-grid-row--center">
+    <!-- Menu latéral (DSFR), sur l'écran des questions seulement : les questions de l'étape en cours.
+         3 colonnes sur toute la hauteur de la page ; tout le reste, fil d'Ariane compris, dans les 9
+         colonnes de droite. Replié sous un bouton en mobile par le DSFR. -->
+    <div class="fr-col-12 fr-col-md-3 fr-pt-2w" id="colonne-menu" hidden>
+      <nav class="fr-sidemenu fr-sidemenu--sticky" role="navigation" aria-labelledby="sidemenu-etape-titre">
+        <div class="fr-sidemenu__inner">
+          <button type="button" class="fr-sidemenu__btn" aria-controls="sidemenu-etape-liste" aria-expanded="false">Dans cette étape</button>
+          <div class="fr-collapse" id="sidemenu-etape-liste">
+            <p class="fr-sidemenu__title" id="sidemenu-etape-titre"></p>
+            <ul class="fr-sidemenu__list" id="sidemenu-questions"></ul>
+          </div>
+        </div>
+      </nav>
+    </div>
     <div class="fr-col-12 fr-col-md-10 fr-col-lg-8" id="colonne-principale">
+
+    <!-- Fil d'Ariane (DSFR) : en haut de la colonne principale, sur tous les écrans sauf l'accueil (à côté
+         du menu latéral sur l'écran des questions). Il suit la hiérarchie du parcours (Accueil › Avant de
+         commencer › étape), pas l'historique. -->
+    <div id="fil-ariane" hidden>
+      <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
+        <button type="button" class="fr-breadcrumb__button" aria-expanded="false" aria-controls="fil-ariane-liens">Voir le fil d’Ariane</button>
+        <div class="fr-collapse" id="fil-ariane-liens">
+          <ol class="fr-breadcrumb__list" id="fil-ariane-liste"></ol>
+        </div>
+      </nav>
+    </div>
 
     <div class="fr-grid-row fr-grid-row--middle fr-mb-3w">
       <div class="fr-col-12 fr-col-md">
@@ -116,7 +131,7 @@
 
       <div class="fr-alert fr-alert--info fr-mt-3w">
         <h2 class="fr-alert__title">Vos données</h2>
-        <p>Vos réponses sont gardées dans votre navigateur, et effacées quand vous fermez l'onglet. Pour comprendre vos phrases, elles sont envoyées à un programme informatique qui comprend le langage (une intelligence artificielle). <a href="/donnees-personnelles">En savoir plus sur vos données</a></p>
+        <p>Vos réponses sont gardées dans votre navigateur, et effacées quand vous fermez l'onglet. Pour comprendre vos phrases, elles sont envoyées à un programme informatique qui comprend le langage (une intelligence artificielle). <a href="/donnees-personnelles" target="_blank" rel="noopener external" title="En savoir plus sur vos données - nouvelle fenêtre" class="fr-link fr-icon-external-link-line fr-link--icon-right">En savoir plus sur vos données</a></p>
       </div>
     </section>
 
@@ -131,26 +146,47 @@
 
       <!-- Tout le texte lu, regroupé sur fond bleu comme la question en cours ; les actions sont dessous. -->
       <div class="fr-background-alt--blue-france fr-p-3w">
-        <p data-lu id="avant-intro">Je vais vous lire les questions de la partie B du formulaire, une par une. Vous répondez avec vos mots, ou directement dans la question.</p>
-        <p data-lu id="avant-intro-clavier" hidden>Je vais vous lire les questions de la partie B du formulaire, une par une. Répondez directement dans chaque question, puis appuyez sur « Question suivante ».</p>
+        <!-- Hero : accroche + phrase lead, donne le ton avant les étapes. -->
+        <h2 class="fr-h4 fr-mb-1w" data-lu id="avant-hero">Je vais vous accompagner pour remplir le formulaire</h2>
+        <p class="fr-text--lead fr-mb-3w" data-lu id="avant-intro">Ça se passe comme une conversation : je vous lis les questions, vous me répondez avec vos mots.</p>
+        <p class="fr-text--lead fr-mb-3w" data-lu id="avant-intro-clavier" hidden>Ça se passe comme un questionnaire : je vous lis les questions, vous répondez directement dans chaque question, puis appuyez sur « Question suivante ».</p>
 
+        <!-- Trois étapes numérotées, fond blanc pour ressortir du fond bleu du bloc parent. Numéro visuel
+             seulement (aria-hidden) : la synthèse vocale enchaine titre + description, ce qui est plus clair
+             qu'une suite de chiffres. Chaque colonne est aussi une ligne de grille (fr-grid-row, conteneur
+             flexible) : le bloc blanc s'étire à la hauteur de la colonne la plus haute, sans CSS ajouté. -->
         <div id="avant-voix">
-          <h2 class="fr-h5 fr-mt-3w" data-lu>Ce que vous pouvez dire à tout moment</h2>
-          <ul>
-            <li data-lu>« <strong>Répète</strong> » : pour réentendre la question.</li>
-            <li data-lu>« <strong>Reformule</strong> » : pour l'entendre avec des mots plus simples.</li>
-            <li data-lu>« <strong>Question suivante</strong> » ou « <strong>étape suivante</strong> » : pour passer à la suite.</li>
-            <li data-lu>« <strong>Question précédente</strong> » ou « <strong>étape précédente</strong> » : pour revenir en arrière.</li>
-            <li data-lu>« <strong>Revenir à</strong> » et le sujet : pour corriger une réponse, par exemple « revenir au logement ».</li>
-          </ul>
+          <div class="fr-grid-row fr-grid-row--gutters fr-mb-3w">
+            <div class="fr-col-12 fr-col-md-4 fr-grid-row">
+              <div class="fr-col-12 fr-background-default--grey fr-p-3w">
+                <p class="fr-display--xs fr-text-action-high--blue-france fr-mb-1v" aria-hidden="true">1</p>
+                <h3 class="fr-h6 fr-mb-1w" data-lu>Écoutez la question</h3>
+                <p class="fr-text--sm fr-mb-0" data-lu>Je la lis à voix haute. Dites « répète » pour la réentendre.</p>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-4 fr-grid-row">
+              <div class="fr-col-12 fr-background-default--grey fr-p-3w">
+                <p class="fr-display--xs fr-text-action-high--blue-france fr-mb-1v" aria-hidden="true">2</p>
+                <h3 class="fr-h6 fr-mb-1w" data-lu>Donnez votre réponse</h3>
+                <p class="fr-text--sm fr-mb-0" data-lu>Parlez avec vos mots, ou cliquez dans la question. Au clavier, maintenez la <strong>barre d'espace</strong> pour parler.</p>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-4 fr-grid-row">
+              <div class="fr-col-12 fr-background-default--grey fr-p-3w">
+                <p class="fr-display--xs fr-text-action-high--blue-france fr-mb-1v" aria-hidden="true">3</p>
+                <h3 class="fr-h6 fr-mb-1w" data-lu>Passez à la suivante</h3>
+                <p class="fr-text--sm fr-mb-0" data-lu>Dites « question suivante », ou cliquez sur le bouton.</p>
+              </div>
+            </div>
+          </div>
+          <p class="fr-mb-0" id="avant-bip" data-lu>Un petit bip vous indique que je vous écoute, un autre que j'ai fini d'écouter.</p>
         </div>
 
         <!-- Une seule consigne affichée selon le mode : écoute automatique, micro à la demande, ou écrit. -->
-        <h2 class="fr-h5 fr-mt-3w" data-lu>Pour commencer</h2>
-        <p class="fr-mb-2w" id="consigne-auto" data-lu>Dites « on commence », ou appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ».</p>
-        <p class="fr-mb-2w" id="consigne-micro" data-lu hidden>Appuyez sur « Parler » et dites « on commence », ou appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ».</p>
+        <h3 class="fr-h5 fr-mt-3w fr-mb-1w" data-lu>Pour commencer</h3>
+        <p class="fr-mb-0" id="consigne-auto" data-lu>Dites « on commence », ou appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ».</p>
+        <p class="fr-mb-0" id="consigne-micro" data-lu hidden>Appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ». Pour commencer à la voix, appuyez sur « Parler » et dites « on commence ».</p>
         <p class="fr-mb-0" id="consigne-clavier" data-lu hidden>Appuyez sur « <span class="libelle-commencer">Commencer les questions</span> ».</p>
-        <p class="fr-mb-0" id="avant-bip" data-lu>Un petit bip vous indique que je vous écoute, un autre que j'ai fini d'écouter.</p>
       </div>
 
       <!-- Hors du fond bleu : au survol, le bouton secondaire DSFR garde un contraste suffisant. -->
@@ -373,7 +409,7 @@
                     </li>
                     <li>
                       <div class="fr-toggle fr-toggle--label-left">
-                        <input type="checkbox" class="fr-toggle__input" id="pref-handsfree" aria-describedby="pref-handsfree-hint" checked>
+                        <input type="checkbox" class="fr-toggle__input" id="pref-handsfree" aria-describedby="pref-handsfree-hint">
                         <label class="fr-toggle__label" for="pref-handsfree" data-fr-checked-label="Activé" data-fr-unchecked-label="Désactivé">Écoute automatique</label>
                         <p class="fr-hint-text" id="pref-handsfree-hint">Le micro s'ouvre et se ferme tout seul. Sinon, utilisez le bouton « Parler ».</p>
                       </div>

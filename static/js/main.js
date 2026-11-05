@@ -28,7 +28,7 @@ const S = {
   lastSaved: null,   // { qid, extra: [ids de précision] } : dernière réponse enregistrée
 };
 
-const prefs = { speak: true, handsfree: true, rate: 0.9 };
+const prefs = { speak: true, handsfree: false, rate: 0.9 };
 // Fixés (non réglables) : voix naturelle féminine, 4 secondes de silence avant la fin de l'écoute.
 const VOICE = 'femme';
 const SILENCE_MS = 4000;
@@ -111,7 +111,9 @@ function visibleQuestions() {
  * en cours.
  */
 function refreshVisibility() {
-  if (S.currentId) showQuestion($('form-b'), S.currentId, computeVisibility(S.schema, S.answers));
+  if (!S.currentId) return;
+  showQuestion($('form-b'), S.currentId, computeVisibility(S.schema, S.answers));
+  renderSidemenu(S.currentId);
 }
 
 /** Question telle qu'affichée : pour un champ de précision, sa question à choix. */
@@ -161,6 +163,55 @@ function renderStepper(i) {
   const last = i === total - 1;
   $('etape-suivante').hidden = last;
   if (!last) $('etape-suivante-titre').textContent = steps[i + 1].title;
+}
+
+/**
+ * Menu latéral (DSFR) : les questions de l'étape en cours, la question affichée à l'état actif, un
+ * badge « Répondue » sur les questions complètes (le DSFR prévoit le badge dans le menu latéral pour
+ * un état). Un champ de précision compte pour sa question principale. Titre du menu : celui de
+ * l'étape, à l'identique (règle DSFR).
+ */
+function renderSidemenu(currentId) {
+  const current = question(currentId);
+  if (!current) return;
+  const topId = topQuestion(current).id;
+  const i = stepIndexOf(question(topId));
+  $('sidemenu-etape-titre').textContent = S.schema.steps[i].title;
+  const vis = computeVisibility(S.schema, S.answers);
+  const list = $('sidemenu-questions');
+  // Liste reconstruite : le focus clavier, s'il y était, reste sur le même lien.
+  const focused = list.contains(document.activeElement) ? document.activeElement.getAttribute('href') : null;
+  list.replaceChildren(...stepQuestions(i, vis).map((q, idx) => {
+    const li = document.createElement('li');
+    li.className = 'fr-sidemenu__item';
+    const link = document.createElement('a');
+    link.className = 'fr-sidemenu__link';
+    link.href = `#${q.id}`;
+    if (q.id === topId) {
+      li.classList.add('fr-sidemenu__item--active');
+      link.setAttribute('aria-current', 'page');
+    }
+    // Intitulé et badge dans un même élément : le lien DSFR aligne ses enfants sur une ligne, ce qui
+    // écraserait l'intitulé en 3 colonnes étroites ; ici le badge passe à la ligne s'il manque de place.
+    const label = document.createElement('span');
+    label.append(`${idx + 1}. ${q.short || q.label}`);
+    if (complete(q, vis)) {
+      label.append(' ', Object.assign(document.createElement('span'), {
+        className: 'fr-badge fr-badge--sm fr-badge--success', textContent: 'Répondue',
+      }));
+    }
+    link.append(label);
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (q.id === topId) return;
+      listener.stop();
+      speaker.stop();
+      ask(q.id, { focus: true });
+    });
+    li.append(link);
+    return li;
+  }));
+  if (focused) list.querySelector(`a[href="${focused}"]`)?.focus();
 }
 
 const srOnly = (text) => Object.assign(document.createElement('span'), { className: 'fr-sr-only', textContent: text });
@@ -430,6 +481,7 @@ function renderCard(q, simple = false, currentOption = null, { focus = false } =
   // suivi : même carte, le focus va sur son titre.
   const title = top === q || isFollowUp(q.id) ? $(`titre-${q.id}`) : $(`field-${q.id}`);
   renderStepper(i);
+  renderSidemenu(q.id);
   renderSaved(q.id);
   const end = S.stepEnd?.qid === q.id;
   $('fin-etape').hidden = !end;
@@ -1087,10 +1139,14 @@ function showScreen(name, title, tab = title) {
   // Écran des questions : « Réglages de la voix » est sur la ligne de lecture, pas à côté du titre.
   $('reglages-titre').hidden = name === 'espace';
   renderBreadcrumb(name);
-  // Une seule colonne centrée sur tous les écrans ; « Avant de commencer » un peu plus étroite,
-  // pour des lignes de texte plus courtes.
+  // Une colonne centrée ; « Avant de commencer » un peu plus étroite, pour des lignes de texte plus
+  // courtes. Écran des questions : menu latéral sur 3 colonnes, contenu sur les 9 autres (DSFR).
   const col = $('colonne-principale');
-  col.classList.toggle('fr-col-lg-8', name !== 'avant');
+  const withMenu = name === 'espace';
+  $('colonne-menu').hidden = !withMenu;
+  col.classList.toggle('fr-col-md-9', withMenu);
+  col.classList.toggle('fr-col-md-10', !withMenu);
+  col.classList.toggle('fr-col-lg-8', !withMenu && name !== 'avant');
   col.classList.toggle('fr-col-lg-7', name === 'avant');
   setPageTitle(title, tab);
   focusTop($('titre-page'));
@@ -1422,6 +1478,46 @@ function bind() {
     window.dsfr(modal).modal.conceal();
     if (opener) window.dsfr(opener).modalButton.focus();
   }, true);
+
+  // Push-to-talk : maintenir la barre d'espace pour parler, relâcher pour arrêter (style Zoom).
+  // Désactivé quand l'écoute automatique est active, quand on saisit dans un champ, ou quand une
+  // fenêtre modale est ouverte (le focus reste alors sur ses champs).
+  const isTypingTarget = (el) => {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+    if (el.tagName === 'INPUT') {
+      const skip = ['radio', 'checkbox', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image'];
+      return !skip.includes((el.type || '').toLowerCase());
+    }
+    return false;
+  };
+  const pttButton = () => {
+    const avant = $('btn-parler-avant');
+    if (avant && avant.offsetParent) return avant;
+    const mic = $('btn-mic');
+    if (mic && mic.offsetParent && !mic.disabled) return mic;
+    return null;
+  };
+  let pttActive = false;
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== ' ' || e.isComposing) return;
+    if (prefs.handsfree || isTypingTarget(e.target)) return;
+    if (document.querySelector('.fr-modal.fr-modal--opened')) return;
+    // On consomme la touche sur tous les appuis (y compris les répétitions pendant le maintien) :
+    // sinon le navigateur fait défiler la page ou active le bouton focusé, ce qui déplace le focus.
+    e.preventDefault();
+    if (e.repeat || listener.active) return;
+    const btn = pttButton();
+    if (!btn) return;
+    pttActive = true;
+    btn.click();
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.key !== ' ' || !pttActive) return;
+    pttActive = false;
+    if (listener.active) listener.finish();
+  });
 
   // Le clic de départ autorise aussi la lecture audio de la voix naturelle (Safari).
   // Un seul bouton : à l'oral quand le navigateur sait écouter (l'usager peut toujours écrire).
