@@ -252,6 +252,9 @@ def field_values(answers):
     for i, row in enumerate((answers.get("frais") or [])[:3], start=1):
         for col, label in FRAIS_COLUMNS.items():
             value = _text(row.get(col)) if isinstance(row, dict) else ""
+            if col in ("montant_total", "montant_rembourse") and value:
+                # Virgule française pour les montants (le Cerfa imprime déjà le symbole €).
+                value = value.replace(".", ",")
             if value:
                 texts[f"Ligne {i} {label}"] = value
     for i, row in enumerate((answers.get("etablissements") or [])[:2], start=1):

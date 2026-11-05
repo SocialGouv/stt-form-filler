@@ -210,7 +210,7 @@ function itemField(q, c, i) {
       ...c.options.map((o) => el('option', { value: o, text: o }))));
   }
   const input = c.kind === 'money'
-    ? el('input', { class: 'fr-input', type: 'number', min: '0', step: '1', inputmode: 'numeric', autocomplete: 'off', ...attrs })
+    ? el('input', { class: 'fr-input', type: 'number', min: '0', step: '0.01', inputmode: 'decimal', autocomplete: 'off', ...attrs })
     : el('input', { class: 'fr-input', type: 'text', autocomplete: 'off', ...attrs });
   return el('div', { class: 'fr-input-group' }, label, input);
 }
@@ -532,9 +532,9 @@ export function writeValue(root, q, value) {
         const v = String(rows[+cell.dataset.row]?.[cell.dataset.col] ?? '');
         const col = q.columns.find((c) => c.id === cell.dataset.col);
         if (col.kind === 'money') {
-          // Montant à l'euro près : « 45,50 € » dit à l'oral → 46.
+          // Montant avec ses décimales : « 45,50 € » dit à l'oral → 45.50.
           const n = v.replace(/[\s\u202f]/g, '').replace(',', '.').match(/\d+(?:\.\d+)?/)?.[0];
-          cell.value = n ? String(Math.round(Number(n))) : '';
+          cell.value = n || '';
         } else if (col.options && v && !col.options.includes(v)) {
           // Réponse hors liste (dite à l'oral) : gardée telle quelle comme choix supplémentaire.
           if (![...cell.options].some((o) => o.value === v)) cell.append(el('option', { value: v, text: v }));

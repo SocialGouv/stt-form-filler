@@ -101,7 +101,7 @@ Tu reçois la question en cours au format JSON. Selon son "type" :
 - "date" : mets la date au format JJ/MM/AAAA dans "date". Si l'usager ne donne que le mois et l'année, utilise le 01 comme jour et dis-le. Si la période n'est pas terminée, ou si l'usager ne sait pas, laisse "date" à null et explique dans "text". La date du jour est donnée dans "date_du_jour" : sers-t'en pour les dates relatives (« l'an dernier », « il y a deux ans »). Si la question a "beforeToday" à true, la date doit être strictement avant la date du jour : si l'usager donne aujourd'hui ou une date future, laisse "date" à null, "intent" = "clarify", "complete" = false, et explique-lui avec douceur que la date doit être passée, puis redemande-la.
 - "number" : mets le nombre dans "number". Si l'usager dit « non », « aucun » ou « zéro » pour une question d'heures, mets 0.
 - "text" : réponse courte. Mets dans "text" une reformulation propre et fidèle, à la première personne du point de vue de la personne concernée, sans inventer.
-- "table" : mets chaque ligne dans "rows" (objets dont les clés sont les "id" des colonnes). Respecte "maxRows". Laisse vide ("") une cellule inconnue. Si l'usager n'a rien à déclarer, "rows" vide et "none_apply" à true. Si une colonne a des "options", écris exactement l'une d'elles (par exemple « tous les mois » → « Chaque mois »). Si une colonne a "kind": "money", écris seulement le montant en euros entiers, en chiffres, arrondi à l'euro le plus proche (par exemple « 46 » pour 45 euros 50), sans le signe €.
+- "table" : mets chaque ligne dans "rows" (objets dont les clés sont les "id" des colonnes). Respecte "maxRows". Laisse vide ("") une cellule inconnue. Si l'usager n'a rien à déclarer, "rows" vide et "none_apply" à true. Si une colonne a des "options", écris exactement l'une d'elles (par exemple « tous les mois » → « Chaque mois »). Si une colonne a "kind": "money", écris seulement le montant en euros, en chiffres, avec les décimales si l'usager les donne, point comme séparateur décimal (par exemple « 45.50 » pour 45 euros 50, « 12 » pour 12 euros), sans arrondir, sans le signe €.
 - "longtext" : texte libre à rédiger. Voir plus bas.
 
 Sigles : l'usager peut désigner une option par son libellé complet, une partie, ou seulement un sigle, prononcé ou épelé (« l'AAH », « le RSA », « en ESAT », « l'ARE » pour l'allocation chômage, « a a h »). Le glossaire des sigles est donné après le schéma. Un sigle désigne l'option qui le contient, ou dont il abrège le libellé. Quand tu cites une option dans "message", écris le libellé complet suivi du sigle entre parenthèses, exactement comme dans le schéma : le site lit les sigles en toutes lettres.
@@ -433,13 +433,12 @@ def openai_models():
 
 
 def _cell(question, column_id, value):
-    """Valeur d'une cellule de tableau : un montant ne garde que le nombre, à l'euro près (« 45,50 € » → « 46 »)."""
+    """Valeur d'une cellule de tableau : un montant garde le nombre avec ses décimales, séparateur point (« 45,50 € » → « 45.50 »)."""
     value = str(value or "").strip()
     column = next((c for c in question["columns"] if c["id"] == column_id), {})
     if column.get("kind") == "money":
         match = re.search(r"\d+(?:[.,]\d+)?", value.replace("\u202f", "").replace(" ", ""))
-        # Arrondi à l'euro le plus proche (0,5 vers le haut, comme on l'attend en français).
-        return str(int(float(match.group(0).replace(",", ".")) + 0.5)) if match else ""
+        return match.group(0).replace(",", ".") if match else ""
     return value
 
 
