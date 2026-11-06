@@ -163,6 +163,9 @@ function renderStepper(i) {
   const last = i === total - 1;
   $('etape-suivante').hidden = last;
   if (!last) $('etape-suivante-titre').textContent = steps[i + 1].title;
+  // Fil d'Ariane : la page en cours porte le nom de son titre, ici celui de l'étape.
+  const here = $('fil-ariane-liste').querySelector('[aria-current="page"]');
+  if (here) here.textContent = steps[i].title;
 }
 
 /**
@@ -399,10 +402,11 @@ function announce(text) {
  * Lecteur de la voix, toujours au même endroit (l'écran ne bouge pas) : un seul bouton dont
  * le libellé suit la lecture. Masqué si la lecture à voix haute est désactivée.
  */
+// Libellés courts : sur l'écran des questions, le bouton tient sur la ligne « Question N sur M ».
 const VOICE_STATES = {
-  speaking: ['Lecture en cours…', 'Mettre en pause', 'fr-icon-pause-circle-line'],
+  speaking: ['Lecture en cours…', 'Pause', 'fr-icon-pause-circle-line'],
   paused: ['Lecture en pause', 'Reprendre', 'fr-icon-play-circle-line'],
-  idle: ['Lecture terminée', 'Réécouter la question', 'fr-icon-refresh-line'],
+  idle: ['Lecture terminée', 'Réécouter', 'fr-icon-refresh-line'],
 };
 
 function renderPause() {
@@ -411,7 +415,6 @@ function renderPause() {
   for (const [zone, state, id, idle] of [['zone-voix', 'etat-voix', 'btn-pause', label],
     ['zone-voix-avant', 'etat-voix-avant', 'btn-pause-avant', 'Réécouter la présentation']]) {
     const btn = $(id);
-    // Écran des questions : seuls l'état et la pause se masquent ; les réglages restent à côté.
     $(zone).hidden = !(prefs.speak && canSpeak);
     if (id === 'btn-pause') btn.hidden = $(zone).hidden;
     $(state).textContent = text;
@@ -1136,8 +1139,8 @@ function showScreen(name, title, tab = title) {
   // ramène à l'écran d'avant au lieu de quitter le site.
   if (!S.fromHistory && history.state?.screen !== name) history.pushState({ screen: name, prev: history.state?.screen }, '');
   for (const id of ['accueil', 'avant', 'espace', 'recap']) $(id).hidden = id !== name;
-  // Écran des questions : « Réglages de la voix » est sur la ligne de lecture, pas à côté du titre.
-  $('reglages-titre').hidden = name === 'espace';
+  // Écran des questions : le titre de la page est celui de l'indicateur d'étapes.
+  $('titre-page').hidden = name === 'espace';
   renderBreadcrumb(name);
   // Une colonne centrée ; « Avant de commencer » un peu plus étroite, pour des lignes de texte plus
   // courtes. Écran des questions : menu latéral sur 3 colonnes, contenu sur les 9 autres (DSFR).
@@ -1149,7 +1152,7 @@ function showScreen(name, title, tab = title) {
   col.classList.toggle('fr-col-lg-8', !withMenu && name !== 'avant');
   col.classList.toggle('fr-col-lg-7', name === 'avant');
   setPageTitle(title, tab);
-  focusTop($('titre-page'));
+  focusTop(name === 'espace' ? $('titre-etape') : $('titre-page'));
 }
 
 /**
@@ -1165,7 +1168,7 @@ function renderBreadcrumb(name) {
   $('contenu').classList.toggle('fr-py-4w', name === 'accueil');
   $('contenu').classList.toggle('fr-pb-4w', name !== 'accueil');
   if (name === 'accueil') return;
-  // Nom de la page, comme son titre : l'étape en cours est donnée par l'indicateur d'étapes.
+  // Nom de la page, comme son titre. Écran des questions : remplacé par le nom de l'étape (renderStepper).
   const here = name === 'avant' ? 'Avant de commencer' : name === 'recap' ? FIN : 'Répondre aux questions';
   const link = (label, href, target) => {
     // Page en cours : pas de href (ce n'est pas un lien), aria-current="page" (exemple DSFR).
@@ -1465,18 +1468,16 @@ function bind() {
 
   // Échap ferme la fenêtre ouverte où que soit le focus : le DSFR l'ignore quand il est sur
   // un champ (liste de vitesse, interrupteurs, boutons radio), ce qui piège l'usager au clavier.
-  // Fermée par l'API (conceal), la fenêtre ne rend pas le focus : on le remet sur le bouton
-  // qui l'a ouverte, avec l'API du DSFR (modalButton.focus).
+  // On passe par le bouton « Fermer » de la fenêtre : le DSFR rend alors le focus au bouton qui l'a
+  // ouverte, ou au bouton « Menu » de l'en-tête si elle a été ouverte depuis le menu mobile (fermée
+  // par l'API, conceal, la fenêtre ne rend pas le focus).
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || e.isComposing) return;
     const modal = document.querySelector('.fr-modal.fr-modal--opened');
-    if (!modal || !window.dsfr) return;
+    if (!modal) return;
     e.preventDefault();
-    // Plusieurs boutons peuvent ouvrir la même fenêtre (« Réglages de la voix ») : celui qui est visible.
-    const opener = [...document.querySelectorAll(`[aria-controls="${modal.id}"][data-fr-opened="true"]`)]
-      .find((btn) => btn.offsetParent) || document.querySelector(`[aria-controls="${modal.id}"][data-fr-opened="true"]`);
-    window.dsfr(modal).modal.conceal();
-    if (opener) window.dsfr(opener).modalButton.focus();
+    e.stopPropagation();
+    modal.querySelector('.fr-btn--close').click();
   }, true);
 
   // Push-to-talk : maintenir la barre d'espace pour parler, relâcher pour arrêter (style Zoom).

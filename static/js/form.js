@@ -113,12 +113,12 @@ function el(tag, attrs = {}, ...children) {
 const OPTIONAL = ' (optionnel)';
 
 /**
- * Titre de la question (niveau 3, sous le titre de l'étape), focalisable pour y amener l'usager,
- * suivi d'une infobulle DSFR au clic avec la question reformulée plus simplement. Le texte de
- * l'infobulle est hors du titre, pour ne pas s'y ajouter.
+ * Titre de la question (niveau 2, sous le titre de l'étape qui est celui de la page), focalisable
+ * pour y amener l'usager, suivi d'une infobulle DSFR au clic avec la question reformulée plus
+ * simplement. Le texte de l'infobulle est hors du titre, pour ne pas s'y ajouter.
  */
 function titleFor(q) {
-  const title = el('h3', { class: 'fr-h5 fr-mb-1w', id: `titre-${q.id}`, tabindex: '-1' },
+  const title = el('h2', { class: 'fr-h5 fr-mb-1w', id: `titre-${q.id}`, tabindex: '-1' },
     el('span', { id: `titre-texte-${q.id}`, text: q.label + (q.optional ? OPTIONAL : '') }));
   if (!q.simple) return [title];
   title.append(' ', el('button', {
@@ -367,7 +367,7 @@ export function renderForm(root, schema, { onChange }) {
     root.append(el('div', { class: 'bloc-question', id: `q-${q.id}`, 'data-qid': q.id, hidden: true }, render(q)));
   }
   // Questions de suivi : dans la carte de la question d'origine, après toutes ses réponses (et un
-  // séparateur), avec un titre d'un niveau en dessous (h4).
+  // séparateur), avec un titre d'un niveau en dessous (h3).
   for (const q of schema.questions) {
     const parentId = FOLLOWS[q.id];
     if (!parentId) continue;
@@ -378,10 +378,10 @@ export function renderForm(root, schema, { onChange }) {
       parent.append(group);
     }
     const node = render(q);
-    node.querySelectorAll(`#titre-${CSS.escape(q.id)}`).forEach((h3) => {
-      const h4 = el('h4', { class: 'fr-h6 fr-mb-1w', id: h3.id, tabindex: '-1' });
-      h4.append(...h3.childNodes);
-      h3.replaceWith(h4);
+    node.querySelectorAll(`#titre-${CSS.escape(q.id)}`).forEach((h2) => {
+      const h3 = el('h3', { class: 'fr-h6 fr-mb-1w', id: h2.id, tabindex: '-1' });
+      h3.append(...h2.childNodes);
+      h2.replaceWith(h3);
     });
     group.append(el('div', { class: 'bloc-suivi', id: `q-${q.id}`, 'data-qid': q.id, hidden: true }, node));
   }

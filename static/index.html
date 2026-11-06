@@ -31,6 +31,9 @@
               <div class="fr-header__logo">
                 <p class="fr-logo">Ministères<br>sociaux</p>
               </div>
+              <div class="fr-header__navbar">
+                <button data-fr-opened="false" aria-controls="menu-entete" title="Menu" type="button" id="bouton-menu-entete" class="fr-btn--menu fr-btn">Menu</button>
+              </div>
             </div>
             <div class="fr-header__service">
               <a href="/" title="Accueil - Complétion d'un formulaire avec la voix">
@@ -38,7 +41,22 @@
               </a>
             </div>
           </div>
+          <!-- Accès rapide (DSFR) : les réglages de la voix, au même endroit sur tous les écrans. En mobile,
+               le DSFR les recopie dans le menu de l'en-tête. -->
+          <div class="fr-header__tools">
+            <div class="fr-header__tools-links">
+              <ul class="fr-btns-group">
+                <li><button type="button" class="fr-btn fr-icon-settings-5-line" aria-controls="modal-reglages" data-fr-opened="false" id="btn-reglages">Réglages de la voix</button></li>
+              </ul>
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
+    <div class="fr-header__menu fr-modal" id="menu-entete" aria-labelledby="bouton-menu-entete">
+      <div class="fr-container">
+        <button aria-controls="menu-entete" title="Fermer" type="button" class="fr-btn--close fr-btn">Fermer</button>
+        <div class="fr-header__menu-links"></div>
       </div>
     </div>
   </header>
@@ -73,16 +91,8 @@
       </nav>
     </div>
 
-    <div class="fr-grid-row fr-grid-row--middle fr-mb-3w">
-      <div class="fr-col-12 fr-col-md">
-        <h1 class="fr-h3 fr-mb-1w" id="titre-page" tabindex="-1">Formulaire MDPH - Partie B</h1>
-      </div>
-      <!-- Sur l'écran des questions, les réglages rejoignent la ligne de lecture (toutes les commandes de la voix au même endroit). -->
-      <div id="reglages-titre">
-        <button type="button" class="fr-btn fr-btn--tertiary fr-icon-settings-5-line fr-btn--icon-left"
-          aria-controls="modal-reglages" data-fr-opened="false" id="btn-reglages">Réglages de la voix</button>
-      </div>
-    </div>
+    <!-- Titre de la page. Écran des questions : masqué, le titre de l'indicateur d'étapes le remplace. -->
+    <h1 class="fr-h3 fr-mb-4w" id="titre-page" tabindex="-1">Formulaire MDPH - Partie B</h1>
 
     <!-- 1. Accueil -->
     <section id="accueil" aria-labelledby="titre-page">
@@ -161,21 +171,21 @@
               <div class="fr-col-12 fr-background-default--grey fr-p-3w">
                 <p class="fr-display--xs fr-text-action-high--blue-france fr-mb-1v" aria-hidden="true">1</p>
                 <h3 class="fr-h6 fr-mb-1w" data-lu>Écoutez la question</h3>
-                <p class="fr-text--sm fr-mb-0" data-lu>Je la lis à voix haute. Dites « répète » pour la réentendre.</p>
+                <p class="fr-mb-0" data-lu>Je la lis à voix haute. Dites « répète » pour la réentendre.</p>
               </div>
             </div>
             <div class="fr-col-12 fr-col-md-4 fr-grid-row">
               <div class="fr-col-12 fr-background-default--grey fr-p-3w">
                 <p class="fr-display--xs fr-text-action-high--blue-france fr-mb-1v" aria-hidden="true">2</p>
                 <h3 class="fr-h6 fr-mb-1w" data-lu>Donnez votre réponse</h3>
-                <p class="fr-text--sm fr-mb-0" data-lu>Parlez avec vos mots, ou cliquez dans la question. Au clavier, maintenez la <strong>barre d'espace</strong> pour parler.</p>
+                <p class="fr-mb-0" data-lu>Parlez avec vos mots, ou cliquez dans la question. Au clavier, maintenez la <strong>barre d'espace</strong> pour parler.</p>
               </div>
             </div>
             <div class="fr-col-12 fr-col-md-4 fr-grid-row">
               <div class="fr-col-12 fr-background-default--grey fr-p-3w">
                 <p class="fr-display--xs fr-text-action-high--blue-france fr-mb-1v" aria-hidden="true">3</p>
-                <h3 class="fr-h6 fr-mb-1w" data-lu>Passez à la suivante</h3>
-                <p class="fr-text--sm fr-mb-0" data-lu>Dites « question suivante », ou cliquez sur le bouton.</p>
+                <h3 class="fr-h6 fr-mb-1w" data-lu>Passez à la question suivante</h3>
+                <p class="fr-mb-0" data-lu>Dites « question suivante », ou cliquez sur le bouton.</p>
               </div>
             </div>
           </div>
@@ -203,42 +213,23 @@
     </section>
 
     <!-- 3. Questions -->
-    <section id="espace" aria-labelledby="titre-page" hidden>
+    <section id="espace" aria-labelledby="titre-etape" hidden>
         <!-- La question en cours : on y répond en cochant, en écrivant ou en parlant. -->
           <div id="alerte-simplifie" class="fr-alert fr-alert--warning fr-alert--sm fr-mb-2w" hidden>
             <p>Mode simplifié : vos phrases sont moins bien comprises. Cochez de préférence les réponses proposées.</p>
           </div>
 
-          <!-- Changer d'étape : l'indicateur d'étapes ne permet pas de naviguer (DSFR), on utilise des boutons
-               (tertiaires, petits), juste au-dessus : « précédente » à gauche, « suivante » à droite. Boutons
-               isolés (hors groupe), chacun avec sa flèche ; la destination est donnée aux lecteurs d'écran.
-               Ils restent côte à côte s'il y a la place ; sinon « suivante » passe dessous, toujours à droite. -->
-          <nav role="navigation" aria-label="Changer d'étape" class="fr-grid-row fr-grid-row--middle fr-mb-1w">
-            <button type="button" class="fr-mb-1w fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-arrow-left-line" id="btn-etape-prec">Étape précédente<span class="fr-sr-only" id="btn-etape-prec-dest"></span></button>
-            <button type="button" class="fr-ml-auto fr-mb-1w fr-btn fr-btn--tertiary fr-btn--icon-right fr-icon-arrow-right-line" id="btn-etape-suiv"><span id="btn-etape-suiv-libelle">Étape suivante</span><span class="fr-sr-only" id="btn-etape-suiv-dest"></span></button>
-          </nav>
+          <!-- Indicateur d'étapes (DSFR) en haut de page. Son titre est celui de la page (h1) : le DSFR laisse
+               le niveau du titre libre selon la hiérarchie de la page. -->
           <div class="fr-stepper">
-            <h2 class="fr-stepper__title"><span id="etape-titre"></span><span class="fr-stepper__state" id="etape-etat"></span></h2>
+            <h1 class="fr-stepper__title" id="titre-etape" tabindex="-1"><span id="etape-titre"></span><span class="fr-stepper__state" id="etape-etat"></span></h1>
             <div class="fr-stepper__steps" id="etape-barre"></div>
             <p class="fr-stepper__details" id="etape-suivante"><span class="fr-text--bold">Étape suivante :</span> <span id="etape-suivante-titre"></span></p>
           </div>
 
-
           <!-- Fin d'étape : vert si l'étape est complète, orange s'il reste des questions sans réponse. -->
           <div id="fin-etape" class="fr-alert fr-alert--success fr-alert--sm fr-mb-2w" hidden>
             <p id="fin-etape-texte"></p>
-          </div>
-          <div id="derniere-reponse" class="fr-alert fr-alert--success fr-alert--sm fr-mb-2w" hidden>
-            <p id="derniere-reponse-texte"></p>
-          </div>
-
-          <!-- Commandes de la voix, au même endroit, au-dessus de la question : état de la lecture et pause
-               (masqués si la lecture à voix haute est désactivée), puis les réglages (toujours visibles). -->
-          <div class="fr-grid-row fr-grid-row--middle fr-mb-1w">
-            <p class="fr-col-12 fr-col-sm fr-mb-1w" role="status" id="zone-voix"><span class="fr-icon-volume-up-line fr-mr-1w" aria-hidden="true"></span><span id="etat-voix">Lecture terminée</span></p>
-            <button type="button" id="btn-pause" class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line fr-mb-1w fr-mr-1w">Réécouter la question</button>
-            <button type="button" class="fr-btn fr-btn--tertiary fr-icon-settings-5-line fr-btn--icon-left fr-mb-1w"
-              aria-controls="modal-reglages" data-fr-opened="false" id="btn-reglages-question">Réglages de la voix</button>
           </div>
 
           <!-- Erreur du micro : au-dessus de la question (pas dans le fond bleu), avec la solution. -->
@@ -246,8 +237,17 @@
             <p id="erreur-micro-texte"></p>
           </div>
 
+          <!-- Numéro de la question et lecteur de la voix, sur une ligne juste au-dessus de la question. Hors du
+               fond bleu : au survol en thème sombre, le bouton tertiaire y perdrait du contraste (3,4:1). L'état de
+               la lecture n'est pas affiché (le libellé du bouton le dit : « Pause », « Reprendre », « Réécouter »)
+               mais reste annoncé aux lecteurs d'écran. Les deux se masquent si la lecture à voix haute est désactivée. -->
+          <div class="fr-grid-row fr-grid-row--middle fr-mb-1w">
+            <p class="fr-text--bold fr-mb-0 fr-mr-2w" id="question-numero"></p>
+            <p class="fr-sr-only" role="status" id="zone-voix"><span id="etat-voix">Lecture terminée</span></p>
+            <button type="button" id="btn-pause" class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line fr-ml-auto">Réécouter</button>
+          </div>
+
           <div class="fr-background-alt--blue-france fr-p-3w">
-            <p class="fr-text--bold fr-mb-1w" id="question-numero"></p>
             <!-- Questions obligatoires : indiqué juste avant les champs (RGAA 11.10), en gris discret (16 px minimum). -->
             <p class="fr-text-mention--grey fr-mb-2w">Sauf mention contraire « (optionnel) » dans l'intitulé, toutes les questions sont obligatoires.</p>
             <form id="form-b" novalidate></form>
@@ -260,12 +260,26 @@
               <p class="fr-mb-2w" id="transcription" hidden><span class="fr-text--bold">Vous avez dit :</span> « <span id="transcription-texte"></span> »</p>
             </div>
           </div>
+          <!-- Réponse enregistrée : le retour sur la question d'avant, lu après la question en cours. -->
+          <div id="derniere-reponse" class="fr-alert fr-alert--success fr-alert--sm fr-mt-2w" hidden>
+            <p id="derniere-reponse-texte"></p>
+          </div>
+
           <!-- Hors du fond bleu : au survol, le bouton secondaire DSFR garde un contraste suffisant. -->
           <!-- Navigation d'une question à l'autre (l'indicateur d'étapes, lui, ne permet pas de naviguer). -->
           <ul class="fr-btns-group fr-btns-group--right fr-btns-group--inline-sm fr-mt-2w fr-mb-0">
             <li id="li-precedent"><button type="button" class="fr-btn fr-btn--tertiary" id="btn-precedent">Question précédente</button></li>
             <li><button type="button" class="fr-btn fr-btn--secondary" id="btn-suivant">Question suivante</button></li>
           </ul>
+
+          <!-- Changer d'étape : en fin de formulaire, sous les boutons de question (modèle de formulaire DSFR :
+               les boutons sont en fin de formulaire ; l'indicateur d'étapes ne permet pas de naviguer).
+               « précédente » à gauche, « suivante » à droite, chacun avec sa flèche ; la destination est donnée
+               aux lecteurs d'écran. Côte à côte s'il y a la place ; sinon « suivante » passe dessous, à droite. -->
+          <nav role="navigation" aria-label="Changer d'étape" class="fr-grid-row fr-grid-row--middle fr-mt-3w">
+            <button type="button" class="fr-mb-1w fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-arrow-left-line" id="btn-etape-prec">Étape précédente<span class="fr-sr-only" id="btn-etape-prec-dest"></span></button>
+            <button type="button" class="fr-ml-auto fr-mb-1w fr-btn fr-btn--tertiary fr-btn--icon-right fr-icon-arrow-right-line" id="btn-etape-suiv"><span id="btn-etape-suiv-libelle">Étape suivante</span><span class="fr-sr-only" id="btn-etape-suiv-dest"></span></button>
+          </nav>
     </section>
 
     <!-- 4. Fin -->
