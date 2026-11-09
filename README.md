@@ -98,7 +98,7 @@ Seul environnement en ligne : le cluster **OVH dev** de la fabrique (Rancher `ra
 - `.kontinuous/values.yaml` : composant `app`, sonde `/healthz` (seule adresse sans mot de passe), délais d'ingress de 180 s pour les appels à l'IA.
 - `.kontinuous/env/dev/templates/app.configmap.yaml` : fournisseur et modèle d'IA.
 - `.kontinuous/env/dev/templates/app.sealed-secret.yaml` : `OPENAI_API_KEY`, `ACCES_IDENTIFIANT`, `ACCES_MOT_DE_PASSE`, chiffrés pour le cluster. Pour les changer : les mettre dans `.env`, puis `./sceller-secrets-dev.sh` (kubectl avec le contexte `ovh-dev`, `brew install kubeseal`) et versionner le fichier produit. Les valeurs ne sont jamais affichées.
-- Prérequis côté fabrique (équipe SRE) : projet Rancher, espace `ci-stt-form-filler`, environnement GitHub `review-auto` avec le secret `KUBECONFIG` et les variables `KS_PROJECT_NAME` / `KS_CI_NAMESPACE`.
+- Rattachement : projet Rancher `fabrique` (projets non classés), namespace de CI partagé `ci-fabrique` (secrets Harbor et kubeconfig), image dans `harbor.fabrique.social.gouv.fr/fabrique/stt-form-filler/app` (`.kontinuous/config.yaml`). Côté GitHub, le dépôt doit recevoir le secret `KUBECONFIG` (équipe SRE).
 - Suivi : `kubectl --context ovh-dev get pods,ingress -n <espace de la branche>` (le contexte par défaut de `~/.kube/config` peut être la production : toujours préciser `--context`).
 
 Comme pour le tunnel : **données fictives uniquement**, le cluster n'est pas hébergé HDS. L'accès est protégé par identifiant et mot de passe.

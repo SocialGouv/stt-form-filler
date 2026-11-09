@@ -1,5 +1,9 @@
-projectName: stt-form-filler
+# Projet Rancher « fabrique » (projets non classés) : namespace de CI et registre Harbor partagés.
+projectName: fabrique
+ciNamespace: ci-fabrique
+
 dependencies:
   fabrique:
     extends:
       - name: ovh
+      - name: buildkit-service
