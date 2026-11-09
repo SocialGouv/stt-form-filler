@@ -10,6 +10,11 @@ concurrency:
   cancel-in-progress: true
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.ref }}
 
+permissions:
+  id-token: write  # jeton OIDC demandé par le workflow partagé (token-bureau)
+  contents: read
+  pull-requests: read
+
 jobs:
   socialgouv:
     name: "🇫🇷 SocialGouv"

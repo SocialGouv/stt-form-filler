@@ -8,6 +8,11 @@ on:
       - "**"
       - "!main"
 
+permissions:
+  id-token: write  # jeton OIDC demandé par le workflow partagé (token-bureau)
+  contents: read
+  pull-requests: read
+
 jobs:
   socialgouv:
     uses: socialgouv/workflows/.github/workflows/use-ks-gh-deactivate.yaml@v1
