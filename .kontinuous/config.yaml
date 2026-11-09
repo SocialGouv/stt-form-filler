@@ -1,6 +1,9 @@
 # Projet Rancher « fabrique » (projets non classés) : namespace de CI et registre Harbor partagés.
 projectName: fabrique
 ciNamespace: ci-fabrique
+# Dépôt privé : le jeton git-auth partagé de ci-fabrique n'y a pas accès (403 au clone). La construction
+# de l'image dans le cluster utilise un jeton dédié, en lecture seule sur ce dépôt (sceller-secrets-dev.sh).
+gitAuthSecretName: stt-form-filler-git-auth
 
 dependencies:
   fabrique:

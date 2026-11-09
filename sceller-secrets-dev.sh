@@ -3,7 +3,10 @@
 # SealedSecret : .kontinuous/env/dev/templates/app.sealed-secret.yaml (versionnable, illisible sans le cluster).
 #
 # Les valeurs viennent de .env (ou de l'environnement) et ne sont jamais affichées :
-#   OPENAI_API_KEY, ACCES_IDENTIFIANT, ACCES_MOT_DE_PASSE
+#   OPENAI_API_KEY, ACCES_IDENTIFIANT, ACCES_MOT_DE_PASSE → app.sealed-secret.yaml (lu par l'application)
+#   GIT_AUTH_TOKEN (facultatif) → git-auth.sealed-secret.yaml : jeton GitHub en lecture seule sur ce dépôt,
+#   utilisé par la construction de l'image dans le cluster (dépôt privé ; voir gitAuthSecretName dans
+#   .kontinuous/config.yaml).
 #
 # Prérequis : kubectl, kubeseal (brew install kubeseal), curl. Aucun accès au cluster n'est nécessaire.
 set -euo pipefail
@@ -11,7 +14,7 @@ cd "$(dirname "$0")"
 
 # Contrôleur sealed-secrets du cluster OVH dev, celui que la CI (kontinuous) utilise pour vérifier.
 KUBESEAL_URL="${KUBESEAL_URL:-https://kubeseal.ovh.fabrique.social.gouv.fr}"
-SORTIE=.kontinuous/env/dev/templates/app.sealed-secret.yaml
+DOSSIER=.kontinuous/env/dev/templates
 CLES=(OPENAI_API_KEY ACCES_IDENTIFIANT ACCES_MOT_DE_PASSE)
 
 command -v kubectl >/dev/null || { echo "kubectl introuvable." >&2; exit 1; }
@@ -39,15 +42,22 @@ chmod 700 "$tmp"
 # Rancher (kubectl get --raw …/proxy/v1/cert.pem) : il renvoie un autre certificat, refusé par la CI.
 curl -fsS "$KUBESEAL_URL/v1/cert.pem" -o "$tmp/cert.pem"
 
-# Fichier d'environnement temporaire (lisible par soi seul) : les valeurs ne passent pas en argument.
-( umask 077; for cle in "${CLES[@]}"; do printf '%s=%s\n' "$cle" "${!cle}"; done > "$tmp/secret.env" )
+# sceller NOM_DU_SECRET FICHIER CLÉ... : chiffre les clés, vérifie comme la CI, puis écrit le fichier.
+sceller() {
+  local nom="$1" sortie="$DOSSIER/$2"; shift 2
+  # Fichier d'environnement temporaire (lisible par soi seul) : les valeurs ne passent pas en argument.
+  ( umask 077; for cle in "$@"; do printf '%s=%s\n' "$cle" "${!cle}"; done > "$tmp/$nom.env" )
+  kubectl create secret generic "$nom" --dry-run=client -o yaml --from-env-file="$tmp/$nom.env" \
+    | kubeseal --cert "$tmp/cert.pem" --scope cluster-wide --format yaml > "$tmp/$nom.yaml"
+  # Même vérification que la CI : le contrôleur doit savoir déchiffrer (seul le texte chiffré est envoyé).
+  local code
+  code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST --data-binary @"$tmp/$nom.yaml" "$KUBESEAL_URL/v1/verify")"
+  [[ "$code" == 200 ]] || { echo "Vérification refusée par $KUBESEAL_URL (HTTP $code) : $sortie non écrit." >&2; exit 1; }
+  mv "$tmp/$nom.yaml" "$sortie"
+  echo "Écrit : $sortie (clés : $*)"
+}
 
-kubectl create secret generic app-sealed-secret --dry-run=client -o yaml --from-env-file="$tmp/secret.env" \
-  | kubeseal --cert "$tmp/cert.pem" --scope cluster-wide --format yaml > "$tmp/sealed.yaml"
-
-# Même vérification que la CI : le contrôleur doit savoir déchiffrer (seul le texte chiffré est envoyé).
-code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST --data-binary @"$tmp/sealed.yaml" "$KUBESEAL_URL/v1/verify")"
-[[ "$code" == 200 ]] || { echo "Vérification refusée par $KUBESEAL_URL (HTTP $code) : fichier non écrit." >&2; exit 1; }
-
-mv "$tmp/sealed.yaml" "$SORTIE"
-echo "Écrit : $SORTIE (clés : ${CLES[*]})"
+sceller app-sealed-secret app.sealed-secret.yaml "${CLES[@]}"
+if [[ -n "${GIT_AUTH_TOKEN:-}" ]]; then
+  sceller stt-form-filler-git-auth git-auth.sealed-secret.yaml GIT_AUTH_TOKEN
+fi
