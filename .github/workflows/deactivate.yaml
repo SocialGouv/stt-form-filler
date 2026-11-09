@@ -1,0 +1,14 @@
+name: ♻️ Deactivate
+# Supprime l'environnement d'une branche supprimée ou d'une PR fermée (pas celui de main).
+on:
+  pull_request:
+    types: [closed]
+  delete:
+    branches:
+      - "**"
+      - "!main"
+
+jobs:
+  socialgouv:
+    uses: socialgouv/workflows/.github/workflows/use-ks-gh-deactivate.yaml@v1
+    secrets: inherit

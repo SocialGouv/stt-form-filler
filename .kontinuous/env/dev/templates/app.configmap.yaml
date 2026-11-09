@@ -1,0 +1,8 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: app-configmap
+data:
+  LLM_PROVIDER: "openai"
+  OPENAI_BASE_URL: "https://albert.api.etalab.gouv.fr/v1"
+  OPENAI_MODEL: "mistralai/Mistral-Medium-3.5-128"

@@ -1,0 +1,44 @@
+app:
+  ~chart: app
+  ~needs: [build-app]
+  imagePackage: app
+  containerPort: 8000
+  probesPath: /healthz
+  ingress:
+    annotations:
+      # Les appels à l'IA peuvent durer plusieurs dizaines de secondes.
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+  envFrom:
+    - configMapRef:
+        name: app-configmap
+    - secretRef:
+        name: app-sealed-secret
+  # Mesuré en local : ≈ 570 Mio avec les deux voix Piper chargées (1 processus gunicorn).
+  resources:
+    requests:
+      cpu: 200m
+      memory: 768Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  annotations:
+    oblik.socialgouv.io/min-request-cpu: "200m"
+    oblik.socialgouv.io/min-request-memory: "768Mi"
+    oblik.socialgouv.io/min-limit-memory: "1Gi"
+  volumes:
+    - name: tmp
+      emptyDir: {}
+  volumeMounts:
+    - mountPath: /tmp
+      name: tmp
+
+jobs:
+  ~chart: jobs
+  runs:
+    build-app:
+      use: build
+      with:
+        imagePackage: app

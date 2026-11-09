@@ -1,0 +1,17 @@
+name: 👓 Review Auto
+# Seul environnement du projet : développement sur la fabrique (cluster OVH dev).
+# Chaque branche, main comprise, a son propre environnement ; celui de main sert de « dev ».
+on:
+  push:
+    branches:
+      - "**"
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.ref }}
+
+jobs:
+  socialgouv:
+    name: "🇫🇷 SocialGouv"
+    uses: socialgouv/workflows/.github/workflows/use-ks-gh-review-auto.yaml@v1
+    secrets: inherit

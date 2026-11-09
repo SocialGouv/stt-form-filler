@@ -1,0 +1,19 @@
+# Secrets : jamais dans l'image
+.env
+.env.*
+.secrets/
+
+.git
+.github
+.kontinuous
+.claude
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+*.log
+.DS_Store
+outils/
+voices/
+docs/
+tests/

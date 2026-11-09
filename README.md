@@ -79,11 +79,29 @@ static/js/main.js    déroulé de la conversation
 static/js/form.js    rendu DSFR du formulaire, conditions
 static/js/voice.js   synthèse et reconnaissance vocales
 static/js/local-nlu.js  mode de secours sans IA
+Dockerfile           image de déploiement (gunicorn, voix Piper incluses)
+.kontinuous/         déploiement sur la fabrique (kontinuous), environnement dev
+.github/workflows/   déploiement à chaque push, nettoyage des branches supprimées
+sceller-secrets-dev.sh  chiffre les secrets de dev (SealedSecret) depuis .env
+tests/               test de la sonde /healthz (pytest) : .venv/bin/pip install pytest && .venv/bin/pytest tests
 static/vendor/dsfr   DSFR 1.15.3 hébergé localement
 docs/                spécifications fonctionnelles et notice technique (PDF)
 docs/generateur/     production du PDF : captures.py, cerfa.py, build.py, print.py (voir LISEZMOI.md)
 .claude/skills/dsfr-rgaa/  règles de développement : DSFR sans surcouche, RGAA, autocritique du design
 ```
+
+## Déployer en développement (fabrique)
+
+Seul environnement en ligne : le cluster **OVH dev** de la fabrique (Rancher `rancher.fabrique.social.gouv.fr`), déployé par [kontinuous](https://github.com/SocialGouv/kontinuous) à chaque `push`. Chaque branche a son environnement (supprimé avec la branche ou à la fermeture de la PR) ; celui de `main` sert d'environnement de développement. Pas de préproduction ni de production.
+
+- `Dockerfile` : gunicorn (1 processus, 8 fils ; `WEB_CONCURRENCY` pour en changer), voix Piper téléchargées à la construction, utilisateur non root, système de fichiers en lecture seule (sauf `/tmp`). Construite dans le cluster (`jobs.build-app`).
+- `.kontinuous/values.yaml` : composant `app`, sonde `/healthz` (seule adresse sans mot de passe), délais d'ingress de 180 s pour les appels à l'IA.
+- `.kontinuous/env/dev/templates/app.configmap.yaml` : fournisseur et modèle d'IA.
+- `.kontinuous/env/dev/templates/app.sealed-secret.yaml` : `OPENAI_API_KEY`, `ACCES_IDENTIFIANT`, `ACCES_MOT_DE_PASSE`, chiffrés pour le cluster. Pour les changer : les mettre dans `.env`, puis `./sceller-secrets-dev.sh` (kubectl avec le contexte `ovh-dev`, `brew install kubeseal`) et versionner le fichier produit. Les valeurs ne sont jamais affichées.
+- Prérequis côté fabrique (équipe SRE) : projet Rancher, espace `ci-stt-form-filler`, environnement GitHub `review-auto` avec le secret `KUBECONFIG` et les variables `KS_PROJECT_NAME` / `KS_CI_NAMESPACE`.
+- Suivi : `kubectl --context ovh-dev get pods,ingress -n <espace de la branche>` (le contexte par défaut de `~/.kube/config` peut être la production : toujours préciser `--context`).
+
+Comme pour le tunnel : **données fictives uniquement**, le cluster n'est pas hébergé HDS. L'accès est protégé par identifiant et mot de passe.
 
 ## Avant une mise en production
 

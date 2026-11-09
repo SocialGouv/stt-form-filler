@@ -10,7 +10,7 @@ Avant toute modification de l'interface (HTML, CSS ou JavaScript dans `static/`)
 
 ## Commandes
 
-Pas de suite de tests ni de linter configurés dans ce dépôt.
+Pas de linter. Un seul test (sonde `/healthz` hors mot de passe) : `.venv/bin/pip install pytest && .venv/bin/pytest tests`.
 
 ```bash
 python3 -m venv .venv
@@ -21,6 +21,7 @@ python3 -m venv .venv
 
 - `ALBERT_API_KEY=... .venv/bin/python llm.py models` — liste les modèles Albert disponibles (pour choisir `ALBERT_MODEL`).
 - `./tester-a-distance.sh` — lance le serveur s'il ne tourne pas et ouvre un tunnel Cloudflare HTTPS pour faire tester à distance (voir avertissements dans le README : données fictives uniquement, fermer le tunnel après chaque session).
+- Déploiement : environnement dev unique sur la fabrique (Rancher, contexte kubectl `ovh-dev` de `~/.kube/config` — le contexte par défaut est `ovh-prod`, toujours passer `--context ovh-dev`), via kontinuous à chaque push (`.kontinuous/`, `.github/workflows/`). Secrets : `./sceller-secrets-dev.sh` (lit `.env`, n'affiche rien). Voir README « Déployer en développement ».
 - Génération de la documentation technique (`docs/`) : voir [docs/generateur/LISEZMOI.md](docs/generateur/LISEZMOI.md).
 
 Configuration via `.env` (copié depuis `.env.example`, jamais versionné) : `LLM_PROVIDER` (`albert` ou `anthropic`), clés API, `ACCES_IDENTIFIANT`/`ACCES_MOT_DE_PASSE` pour protéger un tunnel de test. Les variables d'environnement définies au lancement l'emportent sur `.env`.

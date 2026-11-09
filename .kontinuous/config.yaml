@@ -1,0 +1,5 @@
+projectName: stt-form-filler
+dependencies:
+  fabrique:
+    extends:
+      - name: ovh

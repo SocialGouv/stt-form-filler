@@ -30,6 +30,8 @@ app.config["MAX_CONTENT_LENGTH"] = 256 * 1024
 def access_password():
     """Accès protégé par identifiant et mot de passe, si ACCES_IDENTIFIANT et ACCES_MOT_DE_PASSE
     sont définis dans .env (tests à distance) : le quota Albert n'est utilisable que par les testeurs."""
+    if request.path == "/healthz":  # sondes Kubernetes : jamais derrière le mot de passe
+        return None
     user = os.environ.get("ACCES_IDENTIFIANT")
     password = os.environ.get("ACCES_MOT_DE_PASSE")
     if not (user and password):
@@ -64,6 +66,12 @@ def security_headers(resp):
     if request.path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store"
     return resp
+
+
+@app.get("/healthz")
+def healthz():
+    """Sonde de vie et de disponibilité (Kubernetes) : ne dépend ni de l'IA ni des voix."""
+    return Response("ok", mimetype="text/plain")
 
 
 @app.get("/")
