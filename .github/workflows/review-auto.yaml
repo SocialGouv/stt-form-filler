@@ -1,6 +1,10 @@
 name: 👓 Review Auto
 # Seul environnement du projet : développement sur la fabrique (cluster OVH dev).
 # Chaque branche, main comprise, a son propre environnement ; celui de main sert de « dev ».
+#
+# L'image est construite ici (BuildKit de la fabrique, buildkit-operator) puis poussée sur Harbor :
+# le cluster OVH ne peut pas la construire lui-même (BuildKit distant injoignable, build rootless
+# interdit par la politique Kyverno). kontinuous ne fait ensuite que déployer.
 on:
   push:
     branches:
@@ -11,12 +15,49 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.ref }}
 
 permissions:
-  id-token: write  # jeton OIDC demandé par le workflow partagé (token-bureau)
+  id-token: write  # jeton OIDC : buildkit-operator et workflow partagé (token-bureau)
   contents: read
   pull-requests: read
 
 jobs:
+  build:
+    name: 📦 Build
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: harbor.fabrique.social.gouv.fr/fabrique/stt-form-filler/app
+    steps:
+      - uses: actions/checkout@v4
+
+      # Étiquettes attendues par kontinuous (06-global-defaults) : persist-<sha> sur main, sha-<sha> ailleurs.
+      - name: Image tags
+        id: tags
+        run: |
+          tags="$IMAGE:sha-$GITHUB_SHA"
+          if [ "$GITHUB_REF_NAME" = "main" ]; then tags="$tags $IMAGE:persist-$GITHUB_SHA"; fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: harbor.fabrique.social.gouv.fr
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Build and push
+        uses: socialgouv/buildkit-operator@42071022f7c68070aeba92e8c30e95d8564eeb53 # v1
+        with:
+          buildd-url: ${{ vars.BUILDKIT_OPERATOR_BUILDD_URL }}
+          gateway-host: ${{ vars.BUILDKIT_OPERATOR_GATEWAY_HOST || 'bkod.fabrique.social.gouv.fr' }}
+          ca: ${{ secrets.BUILDKIT_OPERATOR_CA }}
+          cert: ${{ secrets.BUILDKIT_OPERATOR_CERT }}
+          key: ${{ secrets.BUILDKIT_OPERATOR_KEY }}
+          arch: amd64
+          context: .
+          tags: ${{ steps.tags.outputs.tags }}
+          push: true
+
   socialgouv:
     name: "🇫🇷 SocialGouv"
+    needs: [build]
     uses: socialgouv/workflows/.github/workflows/use-ks-gh-review-auto.yaml@v1
     secrets: inherit

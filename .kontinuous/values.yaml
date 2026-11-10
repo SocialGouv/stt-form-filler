@@ -1,6 +1,5 @@
 app:
   ~chart: app
-  ~needs: [build-app]
   imagePackage: app
   containerPort: 8000
   probesPath: /healthz
@@ -35,10 +34,3 @@ app:
     - mountPath: /tmp
       name: tmp
 
-jobs:
-  ~chart: jobs
-  runs:
-    build-app:
-      use: build
-      with:
-        imagePackage: app

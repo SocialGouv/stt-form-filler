@@ -4,9 +4,6 @@
 #
 # Les valeurs viennent de .env (ou de l'environnement) et ne sont jamais affichées :
 #   OPENAI_API_KEY, ACCES_IDENTIFIANT, ACCES_MOT_DE_PASSE → app.sealed-secret.yaml (lu par l'application)
-#   GIT_AUTH_TOKEN (facultatif) → git-auth.sealed-secret.yaml : jeton GitHub en lecture seule sur ce dépôt,
-#   utilisé par la construction de l'image dans le cluster (dépôt privé ; voir gitAuthSecretName dans
-#   .kontinuous/config.yaml).
 #
 # Prérequis : kubectl, kubeseal (brew install kubeseal), curl. Aucun accès au cluster n'est nécessaire.
 set -euo pipefail
@@ -58,6 +55,3 @@ sceller() {
 }
 
 sceller app-sealed-secret app.sealed-secret.yaml "${CLES[@]}"
-if [[ -n "${GIT_AUTH_TOKEN:-}" ]]; then
-  sceller stt-form-filler-git-auth git-auth.sealed-secret.yaml GIT_AUTH_TOKEN
-fi

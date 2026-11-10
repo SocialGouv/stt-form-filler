@@ -1,20 +1,9 @@
 # Projet Rancher « fabrique » (projets non classés) : namespace de CI et registre Harbor partagés.
+# L'image est construite par GitHub Actions (.github/workflows/review-auto.yaml), pas dans le cluster.
 projectName: fabrique
 ciNamespace: ci-fabrique
-# Dépôt privé : le jeton git-auth partagé de ci-fabrique n'y a pas accès (403 au clone). La construction
-# de l'image dans le cluster utilise un jeton dédié, en lecture seule sur ce dépôt (sceller-secrets-dev.sh).
-gitAuthSecretName: stt-form-filler-git-auth
 
 dependencies:
   fabrique:
     extends:
       - name: ovh
-    # Le plugin fabrique active par défaut un BuildKit distant (sur Atlas), injoignable depuis OVH
-    # (délai dépassé) : l'image est construite dans le job lui-même (buildctl-daemonless).
-    dependencies:
-      contrib:
-        valuesCompilers:
-          globalDefaults:
-            options:
-              mergeValues:
-                buildkitServiceEnabled: false
