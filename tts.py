@@ -5,12 +5,16 @@ Les modèles de voix sont dans voices/ (voir le README pour les télécharger). 
 site utilise la voix du navigateur.
 """
 import io
+import json
 import logging
+import math
+import os
 import threading
 import wave
 from pathlib import Path
 
 log = logging.getLogger(__name__)
+CPU_MAX = Path("/sys/fs/cgroup/cpu.max")
 
 VOICES_DIR = Path(__file__).parent / "voices"
 # Identifiant exposé au navigateur → modèle Piper.
@@ -25,9 +29,30 @@ _loaded = {}
 _lock = threading.Lock()
 
 try:
+    import onnxruntime
     from piper import PiperVoice, SynthesisConfig
+    from piper.config import PiperConfig
 except ImportError:  # piper-tts non installé : voix du navigateur uniquement
     PiperVoice = SynthesisConfig = None
+
+
+def onnx_threads(cpu_max=CPU_MAX):
+    """Nombre de fils de calcul pour la synthèse : TTS_THREADS, sinon la limite CPU du conteneur.
+
+    Sans réglage, onnxruntime lance un fil par cœur de la machine (16 sur le cluster) alors que le
+    conteneur n'a droit qu'à 2 CPU : il est alors bridé en permanence et une phrase prend ~2,7 s au
+    lieu de ~0,3 s (mesuré dans le pod)."""
+    try:
+        return max(1, int(os.environ["TTS_THREADS"]))
+    except (KeyError, ValueError):
+        pass
+    try:  # cgroup v2 : « quota période », ou « max période » sans limite
+        quota, period = cpu_max.read_text().split()
+        if quota != "max":
+            return max(1, math.ceil(int(quota) / int(period)))
+    except (OSError, ValueError):
+        pass
+    return max(1, len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1))
 
 
 def available_voices():
@@ -39,7 +64,16 @@ def available_voices():
 
 def _voice(key):
     if key not in _loaded:
-        _loaded[key] = PiperVoice.load(str(VOICES_DIR / f"{VOICES[key]}.onnx"))
+        model = VOICES_DIR / f"{VOICES[key]}.onnx"
+        # Comme PiperVoice.load, mais avec un nombre de fils adapté au conteneur.
+        options = onnxruntime.SessionOptions()
+        options.intra_op_num_threads = onnx_threads()
+        options.inter_op_num_threads = 1
+        config = json.loads(Path(f"{model}.json").read_text(encoding="utf-8"))
+        _loaded[key] = PiperVoice(
+            config=PiperConfig.from_dict(config),
+            session=onnxruntime.InferenceSession(str(model), sess_options=options, providers=["CPUExecutionProvider"]),
+        )
     return _loaded[key]
 
 
