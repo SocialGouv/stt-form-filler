@@ -9,3 +9,12 @@ dependencies:
   fabrique:
     extends:
       - name: ovh
+    # Le plugin fabrique active par défaut un BuildKit distant (sur Atlas), injoignable depuis OVH
+    # (délai dépassé) : l'image est construite dans le job lui-même (buildctl-daemonless).
+    dependencies:
+      contrib:
+        valuesCompilers:
+          globalDefaults:
+            options:
+              mergeValues:
+                buildkitServiceEnabled: false
