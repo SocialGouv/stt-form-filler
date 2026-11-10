@@ -1,3 +1,8 @@
+global:
+  # Le BuildKit distant configuré par défaut est sur Atlas, injoignable depuis OVH (délai dépassé) :
+  # l'image est construite dans le job lui-même (buildctl-daemonless).
+  buildkitServiceEnabled: false
+
 app:
   ~chart: app
   ~needs: [build-app]
