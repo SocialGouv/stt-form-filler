@@ -21,11 +21,14 @@ app:
       cpu: 200m
       memory: 768Mi
     limits:
-      cpu: "1"
+      cpu: "2"
       memory: 1Gi
+  # oblik ajuste les ressources automatiquement : sans plancher, il ramène la limite CPU à 300m et la
+  # synthèse vocale (Piper, gourmande en CPU) passe de ~1 s à 30-40 s par phrase.
   annotations:
     oblik.socialgouv.io/min-request-cpu: "200m"
     oblik.socialgouv.io/min-request-memory: "768Mi"
+    oblik.socialgouv.io/min-limit-cpu: "2"
     oblik.socialgouv.io/min-limit-memory: "1Gi"
   volumes:
     - name: tmp
