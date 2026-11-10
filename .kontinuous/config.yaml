@@ -9,4 +9,4 @@ dependencies:
   fabrique:
     extends:
       - name: ovh
-      - name: buildkit-service
+      # Pas de buildkit-service : il construit sur Atlas (buildkit.atlas.fabrique…), injoignable depuis OVH.
